@@ -297,7 +297,7 @@ function App() {
       <header className="site-header">
         <div className="container nav-row">
           <a className="logo" href="#top">
-            [Your Name]
+            Alex Alwine
           </a>
           <nav className="nav">
             <a href="#about">About</a>
@@ -307,7 +307,7 @@ function App() {
             <a href="#games">Games and Stuff</a>
             <a href="#contact">Contact</a>
           </nav>
-          <a className="button small" href="[resume.pdf]">
+          <a className="button small" href="/resume.pdf">
             Resume
           </a>
         </div>
@@ -317,16 +317,17 @@ function App() {
         <section id="top" className="hero">
           <div className="container hero-grid">
             <div className="hero-content">
-              <p className="eyebrow">Software Engineer</p>
-              <h1>Build reliable systems and delightful product experiences.</h1>
+              <p className="eyebrow">Senior Software Engineer</p>
+              <h1>Senior software engineer building high-impact SaaS products.</h1>
               <p className="lead">
-                I help teams ship performant, accessible web applications with
-                measurable impact. Currently looking for a full-time role in
-                [Location or Remote].
+                Senior software engineer with 10 years of experience building
+                product-facing SaaS applications. I ship TypeScript across the
+                stack, design Node.js/NestJS APIs, and deliver customer-facing
+                experiences with React and React Native.
               </p>
               <div className="cta">
                 <a className="button primary" href="#contact">
-                  Lets talk
+                  Let's talk
                 </a>
                 <a className="button ghost" href="#projects">
                   View projects
@@ -336,19 +337,19 @@ function App() {
                 <div className="highlight-card">
                   <p className="label">Focus</p>
                   <p className="value">
-                    Frontend, platform, and developer experience
+                    SaaS platforms, matching/search, reliability and observability
                   </p>
                 </div>
                 <div className="highlight-card">
                   <p className="label">Stack</p>
                   <p className="value">
-                    TypeScript, React, Node.js, cloud services
+                    TypeScript, Node.js/NestJS, React, AWS, Kafka
                   </p>
                 </div>
                 <div className="highlight-card">
                   <p className="label">Impact</p>
                   <p className="value">
-                    Reduced latency, improved conversion, faster release cycles
+                    70% faster pages, $8M revenue, 2x mobile delivery speed
                   </p>
                 </div>
                 <div className="highlight-card">
@@ -362,26 +363,28 @@ function App() {
             <div className="hero-card">
               <div className="profile-card">
                 <div className="avatar" aria-hidden="true">
-                  YN
+                  AA
                 </div>
                 <div>
-                  <p className="name">[Your Name]</p>
-                  <p className="role">Software Engineer</p>
+                  <p className="name">Alex Alwine</p>
+                  <p className="role">Senior Software Engineer</p>
                   <p className="meta">
-                    [City, Country] | Open to [Remote or Relocation]
+                    St. Louis Park, MN | Open to new opportunities
                   </p>
                 </div>
                 <div className="contact-list">
-                  <a href="mailto:[you@email.com]">[you@email.com]</a>
-                  <a href="[https://www.linkedin.com/in/your-handle]">
+                  <a href="mailto:alex.m.alwine@gmail.com">
+                    alex.m.alwine@gmail.com
+                  </a>
+                  <a href="tel:+16309814594">630-981-4594</a>
+                  <a href="https://www.linkedin.com/in/alex-alwine">
                     LinkedIn
                   </a>
-                  <a href="[https://github.com/your-handle]">GitHub</a>
                 </div>
               </div>
               <div className="availability">
                 <p className="label">Availability</p>
-                <p className="value">Open to new roles starting [Month Year]</p>
+                <p className="value">Open to new senior software roles</p>
               </div>
             </div>
           </div>
@@ -392,19 +395,21 @@ function App() {
             <div>
               <h2>Context and goal</h2>
               <p>
-                This site is focused on helping me get hired as a software
-                engineer. I build modern, scalable products and enjoy working
-                with product, design, and data partners to solve real customer
-                problems.
+                I build product-facing SaaS applications with a strong emphasis
+                on TypeScript across the stack. I design and ship Node.js/NestJS
+                backend services, and deliver customer-facing interfaces with
+                React and React Native.
               </p>
               <p>
-                Add a short narrative here that explains your focus, the kind of
-                team you want to join, and what makes you effective.
+                I am known for modernizing legacy systems, building scalable
+                event-driven integrations, improving reliability and
+                observability, and partnering closely with product and design to
+                ship high-impact features.
               </p>
               <div className="pill-row">
-                <span className="pill">[Domain expertise]</span>
-                <span className="pill">[Favorite impact area]</span>
-                <span className="pill">[Team values]</span>
+                <span className="pill">Product SaaS platforms</span>
+                <span className="pill">Event-driven integrations</span>
+                <span className="pill">Observability & reliability</span>
               </div>
             </div>
             <div className="card">
@@ -425,25 +430,32 @@ function App() {
             <div className="timeline">
               <article className="timeline-item">
                 <div className="timeline-meta">
-                  <p className="role">[Company] - [Role]</p>
-                  <p className="time">[YYYY] - [YYYY]</p>
+                  <p className="role">Field Nation - Senior Software Engineer</p>
+                  <p className="time">2021 - 2026</p>
                 </div>
                 <div className="timeline-content">
                   <p className="summary">
-                    Led initiatives to [outcome]. Collaborated with [teams] to
-                    deliver [features]. Improved [metric] by [value].
+                    Led high-impact product initiatives across TypeScript,
+                    Node.js/NestJS, React, and OpenSearch to improve matching
+                    and search experiences.
                   </p>
                   <ul>
                     <li>
-                      Built [feature] used by [users] and reduced [issue] by
-                      [percent].
+                      Led a new matching experience with React UI and
+                      Node.js/NestJS APIs backed by OpenSearch, reducing page
+                      load time by 70%.
                     </li>
                     <li>
-                      Designed [system] that improved reliability and on-call
-                      health.
+                      Built Go-based data sink services consuming Debezium CDC
+                      via Kafka Connect to keep search indexes fresh.
                     </li>
                     <li>
-                      Mentored [number] engineers and improved onboarding time.
+                      Unified iOS/Android apps into a single React Native
+                      codebase, doubling feature delivery speed.
+                    </li>
+                    <li>
+                      Delivered core features for a subscription product line,
+                      generating $8M in annual revenue.
                     </li>
                   </ul>
                 </div>
@@ -451,19 +463,53 @@ function App() {
 
               <article className="timeline-item">
                 <div className="timeline-meta">
-                  <p className="role">[Company] - [Role]</p>
-                  <p className="time">[YYYY] - [YYYY]</p>
+                  <p className="role">Field Nation - Software Engineer</p>
+                  <p className="time">2019 - 2021</p>
                 </div>
                 <div className="timeline-content">
                   <p className="summary">
-                    Delivered [project] focused on [goal]. Partnered with
-                    [stakeholders].
+                    Built core buyer/provider workflows and scalable platform
+                    capabilities in Node.js and TypeScript.
                   </p>
                   <ul>
                     <li>
-                      Shipped [feature] that increased [metric] by [value].
+                      Built and maintained backend endpoints for buyer and
+                      provider workflows.
                     </li>
-                    <li>Automated [workflow], saving [hours] per week.</li>
+                    <li>
+                      Delivered private network capabilities and scheduling
+                      experiences to assign work to providers.
+                    </li>
+                    <li>
+                      Implemented assignment routing to provider companies,
+                      simplifying coordination.
+                    </li>
+                    <li>
+                      Created 1099 reporting tools that reduced support toil.
+                    </li>
+                  </ul>
+                </div>
+              </article>
+
+              <article className="timeline-item">
+                <div className="timeline-meta">
+                  <p className="role">Field Nation - Associate Software Engineer</p>
+                  <p className="time">2016 - 2019</p>
+                </div>
+                <div className="timeline-content">
+                  <p className="summary">
+                    Built internal tools and automation to improve support
+                    workflows and data quality.
+                  </p>
+                  <ul>
+                    <li>
+                      Built scripts to track notification ticket root causes,
+                      improving response and resolution times.
+                    </li>
+                    <li>
+                      Automated merging of duplicate location records to reduce
+                      long-standing data quality issues.
+                    </li>
                   </ul>
                 </div>
               </article>
@@ -476,70 +522,53 @@ function App() {
             <div className="section-header">
               <div>
                 <h2>Selected projects</h2>
-                <p>Showcase work that demonstrates depth, polish, and impact.</p>
+                <p>Highlights from recent product and platform work.</p>
               </div>
-              <a className="button ghost" href="[https://github.com/your-handle]">
-                View all
-              </a>
             </div>
             <div className="card-grid">
               <article className="project-card">
                 <div className="project-top">
-                  <h3>[Project name]</h3>
-                  <span className="tag">[Role]</span>
+                  <h3>Matching Experience & Search</h3>
+                  <span className="tag">Lead Engineer</span>
                 </div>
                 <p>
-                  [One sentence description of the project and its impact or
-                  outcome.]
+                  Built a new matching experience with a React UI and
+                  Node.js/NestJS APIs backed by OpenSearch to improve search and
+                  responsiveness.
                 </p>
                 <div className="project-metrics">
-                  <span className="metric">Metric: [value]</span>
-                  <span className="metric">Users: [count]</span>
-                  <span className="metric">Stack: [tech]</span>
-                </div>
-                <div className="project-links">
-                  <a href="[https://github.com/your-handle/project]">Source</a>
-                  <a href="[https://project-url.com]">Live</a>
+                  <span className="metric">Impact: 70% faster load times</span>
+                  <span className="metric">Stack: React, NestJS, OpenSearch</span>
                 </div>
               </article>
 
               <article className="project-card">
                 <div className="project-top">
-                  <h3>[Project name]</h3>
-                  <span className="tag">[Role]</span>
+                  <h3>Event-driven Search Indexing</h3>
+                  <span className="tag">Backend Engineer</span>
                 </div>
                 <p>
-                  [One sentence description of the project and its impact or
-                  outcome.]
+                  Implemented Go-based data sink services consuming Debezium CDC
+                  via Kafka Connect to keep OpenSearch indexes fresh.
                 </p>
                 <div className="project-metrics">
-                  <span className="metric">Metric: [value]</span>
-                  <span className="metric">Users: [count]</span>
-                  <span className="metric">Stack: [tech]</span>
-                </div>
-                <div className="project-links">
-                  <a href="[https://github.com/your-handle/project]">Source</a>
-                  <a href="[https://project-url.com]">Live</a>
+                  <span className="metric">Focus: Fresh search data</span>
+                  <span className="metric">Stack: Go, Kafka, Debezium</span>
                 </div>
               </article>
 
               <article className="project-card">
                 <div className="project-top">
-                  <h3>[Project name]</h3>
-                  <span className="tag">[Role]</span>
+                  <h3>Mobile Modernization</h3>
+                  <span className="tag">Mobile Lead</span>
                 </div>
                 <p>
-                  [One sentence description of the project and its impact or
-                  outcome.]
+                  Consolidated iOS and Android apps into a unified React Native
+                  codebase to accelerate delivery.
                 </p>
                 <div className="project-metrics">
-                  <span className="metric">Metric: [value]</span>
-                  <span className="metric">Users: [count]</span>
-                  <span className="metric">Stack: [tech]</span>
-                </div>
-                <div className="project-links">
-                  <a href="[https://github.com/your-handle/project]">Source</a>
-                  <a href="[https://project-url.com]">Live</a>
+                  <span className="metric">Impact: 2x delivery speed</span>
+                  <span className="metric">Stack: React Native</span>
                 </div>
               </article>
             </div>
@@ -551,16 +580,17 @@ function App() {
             <div>
               <h2>Skills and tools</h2>
               <p>
-                Highlight the technical areas you are confident owning end-to-end.
-                Keep this list focused and aligned with the roles you want.
+                Core strengths across TypeScript, Node.js/NestJS, React, SQL,
+                and event-driven architecture, with a focus on reliability and
+                customer-facing SaaS platforms.
               </p>
               <div className="pill-row">
-                <span className="pill">Frontend engineering</span>
-                <span className="pill">Design systems</span>
-                <span className="pill">Performance optimization</span>
-                <span className="pill">API design</span>
+                <span className="pill">TypeScript</span>
+                <span className="pill">Node.js/NestJS</span>
+                <span className="pill">React & React Native</span>
+                <span className="pill">Kafka & event-driven systems</span>
+                <span className="pill">Search & OpenSearch</span>
                 <span className="pill">Observability</span>
-                <span className="pill">Technical leadership</span>
               </div>
             </div>
             <div className="card">
@@ -568,17 +598,17 @@ function App() {
               <div className="columns">
                 <ul>
                   <li>TypeScript</li>
-                  <li>JavaScript</li>
-                  <li>React</li>
-                  <li>Next.js</li>
                   <li>Node.js</li>
+                  <li>NestJS</li>
+                  <li>React</li>
+                  <li>React Native</li>
                 </ul>
                 <ul>
-                  <li>PostgreSQL</li>
+                  <li>SQL / MySQL</li>
+                  <li>Kafka</li>
+                  <li>OpenSearch</li>
                   <li>Redis</li>
-                  <li>GraphQL</li>
-                  <li>Docker</li>
-                  <li>Cloud services</li>
+                  <li>AWS</li>
                 </ul>
               </div>
             </div>
@@ -601,22 +631,20 @@ function App() {
             <div>
               <h2>Proof of impact</h2>
               <p>
-                Include a short list of outcomes that hiring managers can scan
-                quickly. Examples: &quot;Cut page load time by 40%&quot; or
-                &quot;Grew activation by 12%&quot;.
+                Outcomes I am proud of from recent product and platform work.
               </p>
               <div className="impact-grid">
                 <div className="impact-card">
                   <p className="impact-label">Performance</p>
-                  <p className="impact-value">[Metric and result]</p>
+                  <p className="impact-value">Reduced page load time by 70%</p>
                 </div>
                 <div className="impact-card">
-                  <p className="impact-label">Growth</p>
-                  <p className="impact-value">[Metric and result]</p>
+                  <p className="impact-label">Revenue</p>
+                  <p className="impact-value">$8M annual revenue impact</p>
                 </div>
                 <div className="impact-card">
-                  <p className="impact-label">Reliability</p>
-                  <p className="impact-value">[Metric and result]</p>
+                  <p className="impact-label">Delivery</p>
+                  <p className="impact-value">Doubled mobile delivery speed</p>
                 </div>
               </div>
             </div>
@@ -1004,25 +1032,25 @@ function App() {
         <section id="contact" className="section contact">
           <div className="container contact-card">
             <div>
-              <h2>Lets build something together</h2>
+              <h2>Let's build something together</h2>
               <p>
-                I am currently open to software engineering roles. If you are
-                hiring, I would love to hear about the team and the problems you
-                are solving.
+                I am currently open to senior software engineering roles. If you
+                are hiring, I would love to hear about the team and the problems
+                you are solving.
               </p>
             </div>
             <div className="contact-actions">
-              <a className="button primary" href="mailto:[you@email.com]">
+              <a
+                className="button primary"
+                href="mailto:alex.m.alwine@gmail.com"
+              >
                 Email me
               </a>
               <a
                 className="button ghost"
-                href="[https://www.linkedin.com/in/your-handle]"
+                href="https://www.linkedin.com/in/alex-alwine"
               >
                 LinkedIn
-              </a>
-              <a className="button ghost" href="[https://github.com/your-handle]">
-                GitHub
               </a>
             </div>
           </div>
@@ -1031,12 +1059,10 @@ function App() {
 
       <footer className="site-footer">
         <div className="container footer-row">
-          <p>
-            Copyright {year} [Your Name]. All rights reserved.
-          </p>
+          <p>Copyright {year} Alex Alwine. All rights reserved.</p>
           <div className="footer-links">
             <a href="#top">Back to top</a>
-            <a href="[resume.pdf]">Resume</a>
+            <a href="/resume.pdf">Resume</a>
           </div>
         </div>
       </footer>
