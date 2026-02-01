@@ -43,6 +43,10 @@ function App() {
   const [gameMessage, setGameMessage] = useState('')
   const [isStarting, setIsStarting] = useState(false)
   const [isGuessing, setIsGuessing] = useState(false)
+  const [topJobs, setTopJobs] = useState([])
+  const [jobsError, setJobsError] = useState('')
+  const [isListing, setIsListing] = useState(false)
+  const [topJobsSummary, setTopJobsSummary] = useState('')
   const [formatterFile, setFormatterFile] = useState(null)
   const [selectedFormat, setSelectedFormat] = useState(RESUME_FORMATS[0].id)
   const [formatResult, setFormatResult] = useState(null)
@@ -106,6 +110,7 @@ function App() {
     setIsStarting(true)
     setStartError('')
     setGameMessage('')
+    setJobsError('')
 
     try {
       const formData = new FormData()
@@ -124,12 +129,53 @@ function App() {
       const payload = await response.json()
       setGameState(payload)
       setGuessedLetters(payload.guessedLetters ?? [])
+      setTopJobs([])
+      setTopJobsSummary('')
     } catch (error) {
       const message =
         error instanceof Error ? error.message : 'Unable to start the game.'
       setStartError(message)
     } finally {
       setIsStarting(false)
+    }
+  }
+
+  const handleFetchTopJobs = async () => {
+    if (!resumeFile) {
+      setJobsError('Please upload your resume to see the top 10 jobs.')
+      return
+    }
+
+    setIsListing(true)
+    setJobsError('')
+    setGameMessage('')
+    setStartError('')
+
+    try {
+      const formData = new FormData()
+      formData.append('resume', resumeFile)
+
+      const response = await fetch('/api/games/unemploydle/jobs', {
+        method: 'POST',
+        body: formData,
+      })
+
+      if (!response.ok) {
+        const payload = await response.json().catch(() => null)
+        throw new Error(payload?.message ?? 'Unable to fetch job list.')
+      }
+
+      const payload = await response.json()
+      setTopJobs(payload.jobs ?? [])
+      setTopJobsSummary(payload.selectionSummary ?? '')
+      setGameState(null)
+      setGuessedLetters([])
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : 'Unable to fetch job list.'
+      setJobsError(message)
+    } finally {
+      setIsListing(false)
     }
   }
 
@@ -181,6 +227,9 @@ function App() {
     setGuessedLetters([])
     setGameMessage('')
     setStartError('')
+    setTopJobs([])
+    setJobsError('')
+    setTopJobsSummary('')
   }
 
   const handleFormatterFileChange = (event) => {
@@ -662,7 +711,15 @@ function App() {
                       >
                         {isStarting ? 'Starting...' : 'Start game'}
                       </button>
-                      {gameState && (
+                      <button
+                        type="button"
+                        className="button ghost"
+                        onClick={handleFetchTopJobs}
+                        disabled={isListing}
+                      >
+                        {isListing ? 'Loading...' : 'Get top 10 jobs'}
+                      </button>
+                      {(gameState || topJobs.length > 0) && (
                         <button
                           type="button"
                           className="button ghost"
@@ -676,6 +733,9 @@ function App() {
                       Job matching is currently mocked with sample data. Swap in
                       real job feeds and LLM ranking when ready.
                     </p>
+                    {jobsError && (
+                      <p className="status-line error">{jobsError}</p>
+                    )}
 
                     {gameState?.job && (
                       <div className="job-card">
@@ -692,6 +752,44 @@ function App() {
                           Company: {gameState.job.companyMasked}
                         </p>
                         <p className="note">{gameState.selectionSummary}</p>
+                      </div>
+                    )}
+
+                    {topJobs.length > 0 && (
+                      <div className="job-card">
+                        <p className="label">Top 10 matches</p>
+                        {topJobsSummary && (
+                          <p className="note">{topJobsSummary}</p>
+                        )}
+                        <div className="job-list">
+                          {topJobs.map((job) => (
+                            <div key={job.id} className="job-list-item">
+                              <div>
+                                <p className="job-title">{job.title}</p>
+                                <p className="muted">
+                                  {job.company} · {job.location}
+                                </p>
+                              </div>
+                              <div className="job-badges">
+                                <span className="pill">
+                                  Match {job.matchScore}%
+                                </span>
+                                <span className="pill">
+                                  Rating {job.rating}
+                                </span>
+                                <span className="pill">{job.source}</span>
+                              </div>
+                              <a
+                                className="button ghost"
+                                href={job.url}
+                                target="_blank"
+                                rel="noreferrer"
+                              >
+                                View opening
+                              </a>
+                            </div>
+                          ))}
+                        </div>
                       </div>
                     )}
                   </div>

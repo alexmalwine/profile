@@ -32,6 +32,7 @@ The frontend dev server proxies `/api` requests to `http://localhost:3000`.
 ## API
 - `GET /api/health` returns a basic health payload.
 - `POST /api/games/unemploydle/start` accepts a resume upload (multipart form).
+- `POST /api/games/unemploydle/jobs` returns top 10 job matches.
 - `POST /api/games/unemploydle/guess` accepts `{ gameId, letter }`.
 - `GET /api/tools/resume-formatter/formats` returns available formats.
 - `POST /api/tools/resume-formatter/format` formats a resume upload.

@@ -62,6 +62,20 @@ interface GuessResponse extends StartResponse {
   jobUrl?: string;
 }
 
+interface TopJobsResponse {
+  selectionSummary: string;
+  jobs: Array<{
+    id: string;
+    company: string;
+    title: string;
+    location: string;
+    source: JobSource;
+    rating: number;
+    matchScore: number;
+    url: string;
+  }>;
+}
+
 const MAX_GUESSES = 7;
 
 const KNOWN_KEYWORDS = [
@@ -307,6 +321,25 @@ export class UnemploydleService {
     this.cleanupOldGames();
 
     return this.buildStartResponse(game);
+  }
+
+  getTopJobs(resumeText: string): TopJobsResponse {
+    const rankedJobs = rankJobs(resumeText);
+    return {
+      selectionSummary:
+        'Ranked openings with a resume match, company ratings, and ' +
+        'LLM-style scoring. Showing the top 10 matches.',
+      jobs: rankedJobs.map((job) => ({
+        id: job.id,
+        company: job.company,
+        title: job.title,
+        location: job.location,
+        source: job.source,
+        rating: job.rating,
+        matchScore: Math.round(job.matchScore * 100),
+        url: job.url,
+      })),
+    };
   }
 
   guess(gameId: string, letter: string): GuessResponse {

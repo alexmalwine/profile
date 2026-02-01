@@ -667,6 +667,32 @@ main {
   gap: 0.5rem;
 }
 
+.job-list {
+  display: grid;
+  gap: 1rem;
+  margin-top: 0.75rem;
+}
+
+.job-list-item {
+  display: grid;
+  gap: 0.5rem;
+  padding: 1rem;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+}
+
+.job-title {
+  margin: 0;
+  font-weight: 600;
+}
+
+.job-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
 .job-meta {
   display: flex;
   gap: 1rem;

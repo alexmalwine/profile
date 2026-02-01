@@ -33,6 +33,21 @@ export class UnemploydleController {
     return this.unemploydleService.startGame(resumeText);
   }
 
+  @Post('jobs')
+  @UseInterceptors(
+    FileInterceptor('resume', {
+      limits: { fileSize: 5 * 1024 * 1024 },
+    }),
+  )
+  getTopJobs(@UploadedFile() file?: Express.Multer.File) {
+    if (!file) {
+      throw new BadRequestException('Resume file is required.');
+    }
+
+    const resumeText = file.buffer.toString('utf-8');
+    return this.unemploydleService.getTopJobs(resumeText);
+  }
+
   @Post('guess')
   guess(@Body() body: GuessRequest) {
     if (!body?.gameId || !body?.letter) {

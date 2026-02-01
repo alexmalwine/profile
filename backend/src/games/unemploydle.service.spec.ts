@@ -67,6 +67,18 @@ describe('UnemploydleService', () => {
     expect(last.jobUrl).toBe(game.job.url);
   });
 
+  it('returns a top 10 job list', () => {
+    const response = service.getTopJobs('React TypeScript Node');
+
+    expect(response.jobs).toHaveLength(10);
+    expect(response.selectionSummary).toContain('top 10');
+    response.jobs.forEach((job) => {
+      expect(job.company).toBeTruthy();
+      expect(job.matchScore).toBeGreaterThanOrEqual(0);
+      expect(job.matchScore).toBeLessThanOrEqual(100);
+    });
+  });
+
   it('loses after running out of guesses', () => {
     const response = service.startGame('React TypeScript Node');
     const game = getGame(response.gameId);
