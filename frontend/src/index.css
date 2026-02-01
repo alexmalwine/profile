@@ -534,7 +534,8 @@ main {
 }
 
 .status-badge.online,
-.status-badge.won {
+.status-badge.won,
+.status-badge.formatted {
   color: #22c55e;
   background: rgba(34, 197, 94, 0.15);
   border-color: rgba(34, 197, 94, 0.4);
@@ -561,6 +562,16 @@ main {
 
 .file-input input {
   margin-top: 0.35rem;
+}
+
+.select-input {
+  margin-top: 0.35rem;
+  padding: 0.5rem 0.75rem;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text);
+  font-size: 0.95rem;
 }
 
 .file-meta {
@@ -688,6 +699,23 @@ main {
   margin: 0;
   font-size: 1.5rem;
   font-weight: 700;
+}
+
+.preview-box {
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  padding: 1rem;
+  max-height: 360px;
+  overflow: auto;
+}
+
+.preview-box pre {
+  margin: 0;
+  white-space: pre-wrap;
+  font-family: "SF Mono", "Roboto Mono", ui-monospace, monospace;
+  font-size: 0.9rem;
+  color: var(--text);
 }
 
 .impact-label {

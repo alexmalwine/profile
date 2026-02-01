@@ -8,11 +8,30 @@ const API_STATUS_LABELS = {
 
 const GAME_TABS = [
   { id: 'unemploydle', label: 'Unemploydle' },
+  { id: 'resume-formatter', label: 'Resume Formatter' },
   { id: 'coming-soon', label: 'More soon', disabled: true },
 ]
 
 const LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('')
 const MAX_GUESSES = 7
+
+const RESUME_FORMATS = [
+  {
+    id: 'modern',
+    label: 'Modern',
+    description: 'Clean sections with emphasis on impact and metrics.',
+  },
+  {
+    id: 'classic',
+    label: 'Classic',
+    description: 'Traditional format with clear headings and bullet points.',
+  },
+  {
+    id: 'compact',
+    label: 'Compact',
+    description: 'Condensed format designed for quick scanning.',
+  },
+]
 
 function App() {
   const [apiStatus, setApiStatus] = useState('checking')
@@ -24,6 +43,11 @@ function App() {
   const [gameMessage, setGameMessage] = useState('')
   const [isStarting, setIsStarting] = useState(false)
   const [isGuessing, setIsGuessing] = useState(false)
+  const [formatterFile, setFormatterFile] = useState(null)
+  const [selectedFormat, setSelectedFormat] = useState(RESUME_FORMATS[0].id)
+  const [formatResult, setFormatResult] = useState(null)
+  const [formatError, setFormatError] = useState('')
+  const [isFormatting, setIsFormatting] = useState(false)
   const year = new Date().getFullYear()
 
   useEffect(() => {
@@ -62,6 +86,11 @@ function App() {
         : isGameActive
           ? 'In progress'
           : 'Ready'
+  const formatterStatusLabel = formatResult ? 'Formatted' : 'Ready'
+  const formatterStatusClass = formatResult ? 'formatted' : 'ready'
+  const selectedFormatMeta = RESUME_FORMATS.find(
+    (format) => format.id === selectedFormat
+  )
 
   const handleResumeChange = (event) => {
     const file = event.target.files?.[0] ?? null
@@ -154,6 +183,63 @@ function App() {
     setStartError('')
   }
 
+  const handleFormatterFileChange = (event) => {
+    const file = event.target.files?.[0] ?? null
+    setFormatterFile(file)
+  }
+
+  const handleFormatResume = async () => {
+    if (!formatterFile) {
+      setFormatError('Please upload a resume to format.')
+      return
+    }
+
+    setIsFormatting(true)
+    setFormatError('')
+    setFormatResult(null)
+
+    try {
+      const formData = new FormData()
+      formData.append('resume', formatterFile)
+      formData.append('formatId', selectedFormat)
+
+      const response = await fetch('/api/tools/resume-formatter/format', {
+        method: 'POST',
+        body: formData,
+      })
+
+      if (!response.ok) {
+        const payload = await response.json().catch(() => null)
+        throw new Error(payload?.message ?? 'Unable to format resume.')
+      }
+
+      const payload = await response.json()
+      setFormatResult(payload)
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : 'Unable to format resume.'
+      setFormatError(message)
+    } finally {
+      setIsFormatting(false)
+    }
+  }
+
+  const handleDownloadFormatted = () => {
+    if (!formatResult?.content) {
+      return
+    }
+
+    const blob = new Blob([formatResult.content], {
+      type: formatResult.mimeType ?? 'text/plain',
+    })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = formatResult.fileName ?? 'resume.txt'
+    link.click()
+    URL.revokeObjectURL(url)
+  }
+
   return (
     <>
       <a className="skip-link" href="#main">
@@ -169,7 +255,7 @@ function App() {
             <a href="#work">Work</a>
             <a href="#projects">Projects</a>
             <a href="#skills">Skills</a>
-            <a href="#games">Games</a>
+            <a href="#games">Games and Stuff</a>
             <a href="#contact">Contact</a>
           </nav>
           <a className="button small" href="[resume.pdf]">
@@ -492,10 +578,10 @@ function App() {
           <div className="container">
             <div className="section-header">
               <div>
-                <h2>Games</h2>
+                <h2>Games and Stuff</h2>
                 <p>
-                  Try interactive experiences that highlight how I build
-                  products and systems.
+                  Play with experiments, tools, and interactive experiences that
+                  highlight how I build products and systems.
                 </p>
               </div>
               <div className="game-status">
@@ -701,6 +787,101 @@ function App() {
                         )}
                       </div>
                     )}
+                  </div>
+                </div>
+              </div>
+
+              <div
+                className="game-card"
+                role="tabpanel"
+                id="resume-formatter-panel"
+                aria-labelledby="resume-formatter-tab"
+                hidden={activeGame !== 'resume-formatter'}
+              >
+                <div className="game-header">
+                  <div>
+                    <h3>Resume Formatter</h3>
+                    <p className="muted">
+                      Upload a resume and generate polished formats ready to
+                      download.
+                    </p>
+                  </div>
+                  <span className={`status-badge ${formatterStatusClass}`}>
+                    {formatterStatusLabel}
+                  </span>
+                </div>
+
+                <div className="game-grid">
+                  <div className="game-panel">
+                    <label className="file-input">
+                      <span>Resume upload</span>
+                      <input
+                        type="file"
+                        accept=".pdf,.doc,.docx,.txt"
+                        onChange={handleFormatterFileChange}
+                      />
+                    </label>
+                    {formatterFile && (
+                      <p className="file-meta">
+                        Selected file: <strong>{formatterFile.name}</strong>
+                      </p>
+                    )}
+
+                    <label className="file-input">
+                      <span>Choose a format</span>
+                      <select
+                        className="select-input"
+                        value={selectedFormat}
+                        onChange={(event) => setSelectedFormat(event.target.value)}
+                      >
+                        {RESUME_FORMATS.map((format) => (
+                          <option key={format.id} value={format.id}>
+                            {format.label}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <p className="note">
+                      {selectedFormatMeta?.description ??
+                        'Pick a format to preview and download.'}
+                    </p>
+
+                    {formatError && (
+                      <p className="status-line error">{formatError}</p>
+                    )}
+
+                    <div className="game-actions">
+                      <button
+                        type="button"
+                        className="button primary"
+                        onClick={handleFormatResume}
+                        disabled={isFormatting}
+                      >
+                        {isFormatting ? 'Formatting...' : 'Generate format'}
+                      </button>
+                      <button
+                        type="button"
+                        className="button ghost"
+                        onClick={handleDownloadFormatted}
+                        disabled={!formatResult}
+                      >
+                        Download
+                      </button>
+                    </div>
+                    <p className="note">
+                      Formatting is currently mocked with basic templates. Swap
+                      in a richer parser or LLM-based formatting when ready.
+                    </p>
+                  </div>
+
+                  <div className="game-panel">
+                    <p className="label">Preview</p>
+                    <div className="preview-box">
+                      <pre>
+                        {formatResult?.content ??
+                          'Upload a resume and generate a format to preview.'}
+                      </pre>
+                    </div>
                   </div>
                 </div>
               </div>

@@ -27,3 +27,6 @@ Guidance for AI agents working in this repository.
 - The Unemploydle game uses mocked job data and ranking in
   `backend/src/games/unemploydle.service.ts`. Replace with real integrations
   when available.
+- The Resume Formatter uses basic templates in
+  `backend/src/tools/resume-formatter.service.ts` and should be upgraded with a
+  structured parser when available.

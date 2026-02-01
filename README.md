@@ -33,12 +33,19 @@ The frontend dev server proxies `/api` requests to `http://localhost:3000`.
 - `GET /api/health` returns a basic health payload.
 - `POST /api/games/unemploydle/start` accepts a resume upload (multipart form).
 - `POST /api/games/unemploydle/guess` accepts `{ gameId, letter }`.
+- `GET /api/tools/resume-formatter/formats` returns available formats.
+- `POST /api/tools/resume-formatter/format` formats a resume upload.
 
 ## Games
 The Unemploydle game lets a user upload a resume and play a hangman-style round
 to reveal a company name for a curated job opening. Job sourcing and LLM
 ranking are currently mocked with sample data in
 `backend/src/games/unemploydle.service.ts`.
+
+## Tools
+The Resume Formatter accepts a resume upload and generates multiple downloadable
+formats using simple templates in
+`backend/src/tools/resume-formatter.service.ts`.
 
 ## Structure
 - `frontend/`: React application (Vite).
