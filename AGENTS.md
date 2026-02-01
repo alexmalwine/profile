@@ -3,12 +3,15 @@
 Guidance for AI agents working in this repository.
 
 ## Repository overview
-- Purpose: Personal site for various things the author wants to do.
-- Primary docs: README.md
+- Purpose: Personal site focused on getting hired as a software engineer.
+- Frontend: React (Vite) in `frontend/`.
+- Backend: NestJS API in `backend/`.
+- Primary docs: README.md.
 
 ## Setup
-- No setup steps are documented yet.
-- If you add setup steps, update this file and README.md.
+- Backend: `cd backend && npm install && npm run start:dev`
+- Frontend: `cd frontend && npm install && npm run dev`
+- The frontend proxies `/api` to `http://localhost:3000`.
 
 ## Development workflow
 - Keep changes small and focused.
@@ -16,7 +19,8 @@ Guidance for AI agents working in this repository.
 - Run any available tests and linters before committing.
 
 ## Testing
-- No automated tests are documented yet.
+- Frontend: `npm run lint` (from `frontend/`).
+- Backend: `npm run test` or `npm run test:e2e` (from `backend/`).
 
 ## Notes for agents
 - Avoid inventing commands. If new tooling is added, document it here.
