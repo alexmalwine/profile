@@ -31,6 +31,14 @@ The frontend dev server proxies `/api` requests to `http://localhost:3000`.
 
 ## API
 - `GET /api/health` returns a basic health payload.
+- `POST /api/games/unemploydle/start` accepts a resume upload (multipart form).
+- `POST /api/games/unemploydle/guess` accepts `{ gameId, letter }`.
+
+## Games
+The Unemploydle game lets a user upload a resume and play a hangman-style round
+to reveal a company name for a curated job opening. Job sourcing and LLM
+ranking are currently mocked with sample data in
+`backend/src/games/unemploydle.service.ts`.
 
 ## Structure
 - `frontend/`: React application (Vite).

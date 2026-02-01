@@ -24,3 +24,6 @@ Guidance for AI agents working in this repository.
 
 ## Notes for agents
 - Avoid inventing commands. If new tooling is added, document it here.
+- The Unemploydle game uses mocked job data and ranking in
+  `backend/src/games/unemploydle.service.ts`. Replace with real integrations
+  when available.

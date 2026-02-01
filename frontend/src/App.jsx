@@ -6,8 +6,24 @@ const API_STATUS_LABELS = {
   offline: 'Offline',
 }
 
+const GAME_TABS = [
+  { id: 'unemploydle', label: 'Unemploydle' },
+  { id: 'coming-soon', label: 'More soon', disabled: true },
+]
+
+const LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('')
+const MAX_GUESSES = 7
+
 function App() {
   const [apiStatus, setApiStatus] = useState('checking')
+  const [activeGame, setActiveGame] = useState('unemploydle')
+  const [resumeFile, setResumeFile] = useState(null)
+  const [gameState, setGameState] = useState(null)
+  const [guessedLetters, setGuessedLetters] = useState([])
+  const [startError, setStartError] = useState('')
+  const [gameMessage, setGameMessage] = useState('')
+  const [isStarting, setIsStarting] = useState(false)
+  const [isGuessing, setIsGuessing] = useState(false)
   const year = new Date().getFullYear()
 
   useEffect(() => {
@@ -37,6 +53,106 @@ function App() {
   }, [])
 
   const apiStatusLabel = API_STATUS_LABELS[apiStatus] ?? apiStatus
+  const isGameActive = gameState?.status === 'in_progress'
+  const gameStatusLabel =
+    gameState?.status === 'won'
+      ? 'You won'
+      : gameState?.status === 'lost'
+        ? 'Game over'
+        : isGameActive
+          ? 'In progress'
+          : 'Ready'
+
+  const handleResumeChange = (event) => {
+    const file = event.target.files?.[0] ?? null
+    setResumeFile(file)
+  }
+
+  const handleStartGame = async () => {
+    if (!resumeFile) {
+      setStartError('Please upload your resume to start.')
+      return
+    }
+
+    setIsStarting(true)
+    setStartError('')
+    setGameMessage('')
+
+    try {
+      const formData = new FormData()
+      formData.append('resume', resumeFile)
+
+      const response = await fetch('/api/games/unemploydle/start', {
+        method: 'POST',
+        body: formData,
+      })
+
+      if (!response.ok) {
+        const payload = await response.json().catch(() => null)
+        throw new Error(payload?.message ?? 'Unable to start the game.')
+      }
+
+      const payload = await response.json()
+      setGameState(payload)
+      setGuessedLetters(payload.guessedLetters ?? [])
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : 'Unable to start the game.'
+      setStartError(message)
+    } finally {
+      setIsStarting(false)
+    }
+  }
+
+  const handleGuess = async (letter) => {
+    if (!gameState || gameState.status !== 'in_progress') {
+      return
+    }
+
+    if (guessedLetters.includes(letter)) {
+      setGameMessage('You already guessed that letter.')
+      return
+    }
+
+    setIsGuessing(true)
+    setGameMessage('')
+
+    try {
+      const response = await fetch('/api/games/unemploydle/guess', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          gameId: gameState.gameId,
+          letter,
+        }),
+      })
+
+      if (!response.ok) {
+        const payload = await response.json().catch(() => null)
+        throw new Error(payload?.message ?? 'Unable to submit guess.')
+      }
+
+      const payload = await response.json()
+      setGameState(payload)
+      setGuessedLetters((previous) => payload.guessedLetters ?? previous)
+      if (payload.alreadyGuessed) {
+        setGameMessage('You already guessed that letter.')
+      }
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : 'Unable to submit guess.'
+      setGameMessage(message)
+    } finally {
+      setIsGuessing(false)
+    }
+  }
+
+  const handleResetGame = () => {
+    setGameState(null)
+    setGuessedLetters([])
+    setGameMessage('')
+    setStartError('')
+  }
 
   return (
     <>
@@ -53,6 +169,7 @@ function App() {
             <a href="#work">Work</a>
             <a href="#projects">Projects</a>
             <a href="#skills">Skills</a>
+            <a href="#games">Games</a>
             <a href="#contact">Contact</a>
           </nav>
           <a className="button small" href="[resume.pdf]">
@@ -366,6 +483,240 @@ function App() {
                   <p className="impact-label">Reliability</p>
                   <p className="impact-value">[Metric and result]</p>
                 </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section id="games" className="section">
+          <div className="container">
+            <div className="section-header">
+              <div>
+                <h2>Games</h2>
+                <p>
+                  Try interactive experiences that highlight how I build
+                  products and systems.
+                </p>
+              </div>
+              <div className="game-status">
+                <span className="label">API</span>
+                <span className={`status-badge ${apiStatus}`}>
+                  {apiStatusLabel}
+                </span>
+              </div>
+            </div>
+
+            <div className="tabs" role="tablist" aria-label="Games">
+              {GAME_TABS.map((tab) => (
+                <button
+                  key={tab.id}
+                  type="button"
+                  id={`${tab.id}-tab`}
+                  role="tab"
+                  aria-selected={activeGame === tab.id}
+                  aria-controls={`${tab.id}-panel`}
+                  className={`tab ${activeGame === tab.id ? 'active' : ''}`}
+                  disabled={tab.disabled}
+                  onClick={() => setActiveGame(tab.id)}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+
+            <div className="games-grid">
+              <div
+                className="game-card"
+                role="tabpanel"
+                id="unemploydle-panel"
+                aria-labelledby="unemploydle-tab"
+                hidden={activeGame !== 'unemploydle'}
+              >
+                <div className="game-header">
+                  <div>
+                    <h3>Unemploydle</h3>
+                    <p className="muted">
+                      Upload your resume, then guess the company name for a
+                      curated job match.
+                    </p>
+                  </div>
+                  <span
+                    className={`status-badge ${
+                      gameState?.status ?? 'ready'
+                    }`}
+                  >
+                    {gameStatusLabel}
+                  </span>
+                </div>
+
+                <div className="game-grid">
+                  <div className="game-panel">
+                    <label className="file-input">
+                      <span>Resume upload</span>
+                      <input
+                        type="file"
+                        accept=".pdf,.doc,.docx,.txt"
+                        onChange={handleResumeChange}
+                      />
+                    </label>
+                    {resumeFile && (
+                      <p className="file-meta">
+                        Selected file: <strong>{resumeFile.name}</strong>
+                      </p>
+                    )}
+                    {startError && (
+                      <p className="status-line error">{startError}</p>
+                    )}
+                    <div className="game-actions">
+                      <button
+                        type="button"
+                        className="button primary"
+                        onClick={handleStartGame}
+                        disabled={isStarting}
+                      >
+                        {isStarting ? 'Starting...' : 'Start game'}
+                      </button>
+                      {gameState && (
+                        <button
+                          type="button"
+                          className="button ghost"
+                          onClick={handleResetGame}
+                        >
+                          Reset
+                        </button>
+                      )}
+                    </div>
+                    <p className="note">
+                      Job matching is currently mocked with sample data. Swap in
+                      real job feeds and LLM ranking when ready.
+                    </p>
+
+                    {gameState?.job && (
+                      <div className="job-card">
+                        <p className="label">Selected role</p>
+                        <h4>{gameState.job.title}</h4>
+                        <p className="muted">
+                          {gameState.job.location} · {gameState.job.source}
+                        </p>
+                        <div className="job-meta">
+                          <span>Match {gameState.job.matchScore}%</span>
+                          <span>Rating {gameState.job.rating}</span>
+                        </div>
+                        <p className="muted">
+                          Company: {gameState.job.companyMasked}
+                        </p>
+                        <p className="note">{gameState.selectionSummary}</p>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="game-panel">
+                    <p className="label">Company to guess</p>
+                    <div className="word-display">
+                      {gameState?.maskedCompany ?? '—'}
+                    </div>
+                    <div className="game-meta">
+                      <div className="meta-item">
+                        <span className="label">Guesses left</span>
+                        <span className="value">
+                          {gameState?.guessesLeft ?? MAX_GUESSES} /{' '}
+                          {gameState?.maxGuesses ?? MAX_GUESSES}
+                        </span>
+                      </div>
+                      <div className="meta-item">
+                        <span className="label">Incorrect guesses</span>
+                        <span className="value">
+                          {gameState?.incorrectGuesses?.length ?? 0}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="letters-grid" aria-label="Guess a letter">
+                      {LETTERS.map((letter) => {
+                        const isUsed = guessedLetters.includes(letter)
+                        return (
+                          <button
+                            key={letter}
+                            type="button"
+                            className={`letter-button ${isUsed ? 'used' : ''}`}
+                            disabled={!isGameActive || isUsed || isGuessing}
+                            onClick={() => handleGuess(letter)}
+                          >
+                            {letter}
+                          </button>
+                        )
+                      })}
+                    </div>
+
+                    {guessedLetters.length > 0 && (
+                      <p className="note">
+                        Guessed letters: {guessedLetters.join(', ')}
+                      </p>
+                    )}
+                    {gameState?.incorrectGuesses?.length > 0 && (
+                      <p className="note">
+                        Incorrect: {gameState.incorrectGuesses.join(', ')}
+                      </p>
+                    )}
+                    {gameMessage && (
+                      <p className="status-line" role="status">
+                        {gameMessage}
+                      </p>
+                    )}
+
+                    {gameState?.status === 'won' && (
+                      <div className="result-card success">
+                        <h4>Nice work! You matched:</h4>
+                        <p className="result-company">
+                          {gameState.revealedCompany}
+                        </p>
+                        {gameState.jobUrl && (
+                          <a
+                            className="button primary"
+                            href={gameState.jobUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                          >
+                            View job opening
+                          </a>
+                        )}
+                      </div>
+                    )}
+
+                    {gameState?.status === 'lost' && (
+                      <div className="result-card warning">
+                        <h4>Good try! The company was:</h4>
+                        <p className="result-company">
+                          {gameState.revealedCompany}
+                        </p>
+                        {gameState.jobUrl && (
+                          <a
+                            className="button ghost"
+                            href={gameState.jobUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                          >
+                            Review the job opening
+                          </a>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              <div
+                className="game-card placeholder"
+                role="tabpanel"
+                id="coming-soon-panel"
+                aria-labelledby="coming-soon-tab"
+                hidden={activeGame !== 'coming-soon'}
+              >
+                <h3>More games coming soon</h3>
+                <p className="muted">
+                  Ideas include interview prep challenges, system design
+                  puzzles, and growth experiments.
+                </p>
               </div>
             </div>
           </div>
