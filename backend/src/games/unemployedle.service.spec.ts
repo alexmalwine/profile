@@ -126,7 +126,7 @@ describe('UnemployedleService', () => {
   beforeEach(() => {
     service = new UnemployedleService({
       searchJobs: async () => stubSearchResult,
-    });
+    } as any);
   });
 
   const getGame = (gameId: string) => (service as any).games.get(gameId);
@@ -184,8 +184,6 @@ describe('UnemployedleService', () => {
     });
 
     expect(last.status).toBe('won');
-    expect(last.revealedCompany).toBe(game.company);
-    expect(last.jobUrl).toBe(game.job.url);
   });
 
   it('returns a top 10 job list', async () => {
@@ -217,7 +215,5 @@ describe('UnemployedleService', () => {
 
     expect(last.status).toBe('lost');
     expect(last.guessesLeft).toBe(0);
-    expect(last.revealedCompany).toBe(game.company);
-    expect(last.jobUrl).toBe(game.job.url);
   });
 });

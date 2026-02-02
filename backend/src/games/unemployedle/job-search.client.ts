@@ -1,4 +1,4 @@
-import { Logger, ServiceUnavailableException } from '@nestjs/common';
+import { Injectable, Logger, ServiceUnavailableException } from '@nestjs/common';
 import {
   MAX_RESUME_CHARS,
   OPENAI_API_URL,
@@ -12,13 +12,15 @@ import {
 } from './job-utils';
 import type { JobSearchClient, JobSearchJob, JobSearchResult } from './types';
 
+@Injectable()
 export class ChatGptJobSearchClient implements JobSearchClient {
   private readonly apiKey = process.env.OPENAI_API_KEY;
   private readonly model = OPENAI_MODEL;
   private readonly apiUrl = OPENAI_API_URL;
   private readonly logger = new Logger(ChatGptJobSearchClient.name);
+  private readonly fetcher: typeof fetch = fetch;
 
-  constructor(private readonly fetcher: typeof fetch = fetch) {}
+  constructor() {}
 
   async searchJobs(resumeText: string): Promise<JobSearchResult> {
     if (!this.apiKey) {
@@ -65,6 +67,7 @@ export class ChatGptJobSearchClient implements JobSearchClient {
     );
 
     let response: Response;
+    console.log('Sending ChatGPT job search request:', requestBody);
     try {
       response = await this.fetcher(this.apiUrl, {
         method: 'POST',
@@ -97,6 +100,7 @@ export class ChatGptJobSearchClient implements JobSearchClient {
     let payload: any;
     try {
       payload = await response.json();
+      // console.log('ChatGPT job search response payload:', payload);
     } catch {
       throw new ServiceUnavailableException('ChatGPT returned invalid JSON.');
     }

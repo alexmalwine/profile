@@ -21,13 +21,13 @@ import {
   normalizeJobResults,
   sanitizeLetter,
 } from './unemployedle/job-utils';
-import type {
-  CachedJobSearch,
-  GameState,
-  GuessResponse,
-  JobSearchClient,
-  StartResponse,
-  TopJobsResponse,
+import {
+  type CachedJobSearch,
+  type GameState,
+  type GuessResponse,
+  type StartResponse,
+  type TopJobsResponse,
+  type JobSearchClient,
 } from './unemployedle/types';
 
 @Injectable()
@@ -36,9 +36,7 @@ export class UnemployedleService {
   private readonly searchCache = new Map<string, CachedJobSearch>();
   private readonly logger = new Logger(UnemployedleService.name);
 
-  constructor(
-    private readonly jobSearchClient: JobSearchClient = new ChatGptJobSearchClient(),
-  ) {}
+  constructor(private readonly jobSearchClient: ChatGptJobSearchClient) {}
 
   async startGame(resumeText: string): Promise<StartResponse> {
     const { rankedJobs, searchResult } = await this.rankJobs(resumeText);
