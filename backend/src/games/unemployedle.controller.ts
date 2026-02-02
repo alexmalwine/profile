@@ -9,7 +9,7 @@ import {
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import type { Multer } from 'multer';
-import pdfParse from 'pdf-parse';
+import pdfParse = require('pdf-parse');
 import { UnemployedleService } from './unemployedle.service';
 import type {
   GuessResponse,
@@ -81,7 +81,8 @@ export class UnemployedleController {
           'PDF resume parsed but contained no text. Falling back to raw text.',
         );
       } catch (error) {
-        const message = error instanceof Error ? error.message : 'Unknown error';
+        const message =
+          error instanceof Error ? error.message : 'Unknown error';
         this.logger.warn(
           `PDF resume parsing failed. Falling back to raw text. ${message}`,
         );
@@ -107,13 +108,18 @@ export class UnemployedleController {
   }
 
   private normalizeResumeText(text: string): string {
-    const withoutControls = text
-      .replace(/\r\n/g, '\n')
-      .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, '')
+    const normalizedNewlines = text.replace(/\r\n/g, '\n');
+    const withoutControls = Array.from(normalizedNewlines)
+      .filter((char) => {
+        const code = char.charCodeAt(0);
+        return code === 9 || code === 10 || code === 13 || code >= 32;
+      })
+      .join('');
+    const collapsedWhitespace = withoutControls
       .replace(/\t/g, ' ')
       .replace(/[ ]{2,}/g, ' ')
       .replace(/\n{3,}/g, '\n\n');
 
-    return withoutControls.trim();
+    return collapsedWhitespace.trim();
   }
 }
