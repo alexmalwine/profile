@@ -362,8 +362,12 @@ function App() {
             </div>
             <div className="hero-card">
               <div className="profile-card">
-                <div className="avatar" aria-hidden="true">
-                  AA
+                <div className="avatar">
+                  <img
+                    className="avatar-image"
+                    src="/me.jpg"
+                    alt="Alex Alwine"
+                  />
                 </div>
                 <div>
                   <p className="name">Alex Alwine</p>
