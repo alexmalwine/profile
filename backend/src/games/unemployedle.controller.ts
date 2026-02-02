@@ -22,7 +22,9 @@ interface GuessRequest {
   letter: string;
 }
 
-type PdfParseResult = Awaited<ReturnType<typeof pdfParse>>;
+interface PdfParseResult {
+  text: string;
+}
 
 @Controller('api/games/unemployedle')
 export class UnemployedleController {
@@ -73,12 +75,10 @@ export class UnemployedleController {
     return this.unemployedleService.guess(body.gameId, body.letter);
   }
 
-  private async extractResumeText(
-    file: Express.Multer.File,
-  ): Promise<string> {
+  private async extractResumeText(file: Express.Multer.File): Promise<string> {
     if (this.isPdfResume(file)) {
       try {
-        const parsed: PdfParseResult = await pdfParse(file.buffer);
+        const parsed = (await pdfParse(file.buffer)) as PdfParseResult;
         const normalized = this.normalizeResumeText(parsed.text ?? '');
         if (normalized) {
           return normalized;
