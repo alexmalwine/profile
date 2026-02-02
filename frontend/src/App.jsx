@@ -7,7 +7,7 @@ const API_STATUS_LABELS = {
 }
 
 const GAME_TABS = [
-  { id: 'unemploydle', label: 'Unemploydle' },
+  { id: 'unemployedle', label: 'Unemployedle' },
   { id: 'resume-formatter', label: 'Resume Formatter' },
   { id: 'coming-soon', label: 'More soon', disabled: true },
 ]
@@ -35,7 +35,7 @@ const RESUME_FORMATS = [
 
 function App() {
   const [apiStatus, setApiStatus] = useState('checking')
-  const [activeGame, setActiveGame] = useState('unemploydle')
+  const [activeGame, setActiveGame] = useState('unemployedle')
   const [resumeFile, setResumeFile] = useState(null)
   const [gameState, setGameState] = useState(null)
   const [guessedLetters, setGuessedLetters] = useState([])
@@ -116,7 +116,7 @@ function App() {
       const formData = new FormData()
       formData.append('resume', resumeFile)
 
-      const response = await fetch('/api/games/unemploydle/start', {
+      const response = await fetch('/api/games/unemployedle/start', {
         method: 'POST',
         body: formData,
       })
@@ -155,7 +155,7 @@ function App() {
       const formData = new FormData()
       formData.append('resume', resumeFile)
 
-      const response = await fetch('/api/games/unemploydle/jobs', {
+      const response = await fetch('/api/games/unemployedle/jobs', {
         method: 'POST',
         body: formData,
       })
@@ -193,7 +193,7 @@ function App() {
     setGameMessage('')
 
     try {
-      const response = await fetch('/api/games/unemploydle/guess', {
+      const response = await fetch('/api/games/unemployedle/guess', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -695,13 +695,13 @@ function App() {
               <div
                 className="game-card"
                 role="tabpanel"
-                id="unemploydle-panel"
-                aria-labelledby="unemploydle-tab"
-                hidden={activeGame !== 'unemploydle'}
+                id="unemployedle-panel"
+                aria-labelledby="unemployedle-tab"
+                hidden={activeGame !== 'unemployedle'}
               >
                 <div className="game-header">
                   <div>
-                    <h3>Unemploydle</h3>
+                    <h3>Unemployedle</h3>
                     <p className="muted">
                       Upload your resume, then guess the company name for a
                       curated job match.
@@ -762,8 +762,8 @@ function App() {
                       )}
                     </div>
                     <p className="note">
-                      Job matching is currently mocked with sample data. Swap in
-                      real job feeds and LLM ranking when ready.
+                      Job matching is powered by ChatGPT and live job board
+                      queries based on your resume.
                     </p>
                     {jobsError && (
                       <p className="status-line error">{jobsError}</p>
