@@ -24,9 +24,9 @@ Guidance for AI agents working in this repository.
 
 ## Notes for agents
 - Avoid inventing commands. If new tooling is added, document it here.
-- The Unemploydle game uses mocked job data and ranking in
-  `backend/src/games/unemploydle.service.ts`. Replace with real integrations
-  when available. The top 10 list endpoint shares this mocked data.
+- The Unemployedle game uses ChatGPT-powered job search in
+  `backend/src/games/unemployedle.service.ts`. It requires `OPENAI_API_KEY`
+  and the top 10 list endpoint shares the same search results.
 - The Resume Formatter uses basic templates in
   `backend/src/tools/resume-formatter.service.ts` and should be upgraded with a
   structured parser when available.

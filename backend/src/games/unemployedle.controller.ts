@@ -8,17 +8,21 @@ import {
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import type { Multer } from 'multer';
-import { UnemploydleService } from './unemploydle.service';
-import type { StartResponse, TopJobsResponse, GuessResponse } from './unemploydle.service';
+import { UnemployedleService } from './unemployedle.service';
+import type {
+  StartResponse,
+  TopJobsResponse,
+  GuessResponse,
+} from './unemployedle.service';
 
 interface GuessRequest {
   gameId: string;
   letter: string;
 }
 
-@Controller('api/games/unemploydle')
-export class UnemploydleController {
-  constructor(private readonly unemploydleService: UnemploydleService) {}
+@Controller('api/games/unemployedle')
+export class UnemployedleController {
+  constructor(private readonly unemployedleService: UnemployedleService) {}
 
   @Post('start')
   @UseInterceptors(
@@ -32,7 +36,7 @@ export class UnemploydleController {
     }
 
     const resumeText = file.buffer.toString('utf-8');
-    return this.unemploydleService.startGame(resumeText);
+    return this.unemployedleService.startGame(resumeText);
   }
 
   @Post('jobs')
@@ -49,7 +53,7 @@ export class UnemploydleController {
     }
 
     const resumeText = file.buffer.toString('utf-8');
-    return this.unemploydleService.getTopJobs(resumeText);
+    return this.unemployedleService.getTopJobs(resumeText);
   }
 
   @Post('guess')
@@ -58,6 +62,6 @@ export class UnemploydleController {
       throw new BadRequestException('gameId and letter are required.');
     }
 
-    return this.unemploydleService.guess(body.gameId, body.letter);
+    return this.unemployedleService.guess(body.gameId, body.letter);
   }
 }

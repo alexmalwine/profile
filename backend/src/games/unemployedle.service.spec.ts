@@ -1,8 +1,8 @@
 import { BadRequestException } from '@nestjs/common';
-import { UnemploydleService } from './unemploydle.service';
+import { UnemployedleService } from './unemployedle.service';
 
-describe('UnemploydleService', () => {
-  let service: UnemploydleService;
+describe('UnemployedleService', () => {
+  let service: UnemployedleService;
 
   const stubSearchResult = {
     summary: 'ChatGPT searched job sites and ranked the best resume matches.',
@@ -124,7 +124,7 @@ describe('UnemploydleService', () => {
   };
 
   beforeEach(() => {
-    service = new UnemploydleService({
+    service = new UnemployedleService({
       searchJobs: async () => stubSearchResult,
     });
   });

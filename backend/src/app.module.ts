@@ -1,8 +1,8 @@
 import { Module } from '@nestjs/common';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
-import { UnemploydleController } from './games/unemploydle.controller';
-import { UnemploydleService } from './games/unemploydle.service';
+import { UnemployedleController } from './games/unemployedle.controller';
+import { UnemployedleService } from './games/unemployedle.service';
 import { ResumeFormatterController } from './tools/resume-formatter.controller';
 import { ResumeFormatterService } from './tools/resume-formatter.service';
 
@@ -10,9 +10,9 @@ import { ResumeFormatterService } from './tools/resume-formatter.service';
   imports: [],
   controllers: [
     AppController,
-    UnemploydleController,
+    UnemployedleController,
     ResumeFormatterController,
   ],
-  providers: [AppService, UnemploydleService, ResumeFormatterService],
+  providers: [AppService, UnemployedleService, ResumeFormatterService],
 })
 export class AppModule {}

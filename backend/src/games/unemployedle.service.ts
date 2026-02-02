@@ -325,10 +325,7 @@ const safeParseJson = (text: string) => {
 const truncateText = (text: string, maxChars: number) =>
   text.length > maxChars ? text.slice(0, maxChars) : text;
 
-const buildSelectionSummary = (
-  result: JobSearchResult,
-  suffix: string,
-) => {
+const buildSelectionSummary = (result: JobSearchResult, suffix: string) => {
   const summary =
     toNonEmptyString(result.summary) ??
     'ChatGPT searched job sites for the best resume matches.';
@@ -502,10 +499,10 @@ class ChatGptJobSearchClient implements JobSearchClient {
 }
 
 @Injectable()
-export class UnemploydleService {
+export class UnemployedleService {
   private readonly games = new Map<string, GameState>();
   private readonly searchCache = new Map<string, CachedJobSearch>();
-  private readonly logger = new Logger(UnemploydleService.name);
+  private readonly logger = new Logger(UnemployedleService.name);
 
   constructor(
     private readonly jobSearchClient: JobSearchClient = new ChatGptJobSearchClient(),
