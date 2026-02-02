@@ -15,7 +15,7 @@ export const useApiStatus = () => {
         if (isMounted) {
           setApiStatus('online')
         }
-      } catch (error) {
+      } catch {
         if (isMounted) {
           setApiStatus('offline')
         }
