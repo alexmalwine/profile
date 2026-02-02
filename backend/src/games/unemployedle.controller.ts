@@ -8,8 +8,8 @@ import {
   UseInterceptors,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
-import type { Multer } from 'multer';
-import pdfParse = require('pdf-parse');
+import type { Express } from 'express';
+import pdfParse from 'pdf-parse';
 import { UnemployedleService } from './unemployedle.service';
 import type {
   GuessResponse,
@@ -21,6 +21,8 @@ interface GuessRequest {
   gameId: string;
   letter: string;
 }
+
+type PdfParseResult = Awaited<ReturnType<typeof pdfParse>>;
 
 @Controller('api/games/unemployedle')
 export class UnemployedleController {
@@ -34,7 +36,9 @@ export class UnemployedleController {
       limits: { fileSize: 5 * 1024 * 1024 },
     }),
   )
-  async startGame(@UploadedFile() file?: Multer.File): Promise<StartResponse> {
+  async startGame(
+    @UploadedFile() file?: Express.Multer.File,
+  ): Promise<StartResponse> {
     if (!file) {
       throw new BadRequestException('Resume file is required.');
     }
@@ -50,7 +54,7 @@ export class UnemployedleController {
     }),
   )
   async getTopJobs(
-    @UploadedFile() file?: Multer.File,
+    @UploadedFile() file?: Express.Multer.File,
   ): Promise<TopJobsResponse> {
     if (!file) {
       throw new BadRequestException('Resume file is required.');
@@ -69,10 +73,12 @@ export class UnemployedleController {
     return this.unemployedleService.guess(body.gameId, body.letter);
   }
 
-  private async extractResumeText(file: Multer.File): Promise<string> {
+  private async extractResumeText(
+    file: Express.Multer.File,
+  ): Promise<string> {
     if (this.isPdfResume(file)) {
       try {
-        const parsed = await pdfParse(file.buffer);
+        const parsed: PdfParseResult = await pdfParse(file.buffer);
         const normalized = this.normalizeResumeText(parsed.text ?? '');
         if (normalized) {
           return normalized;
@@ -92,7 +98,7 @@ export class UnemployedleController {
     return this.normalizeResumeText(file.buffer.toString('utf-8'));
   }
 
-  private isPdfResume(file: Multer.File): boolean {
+  private isPdfResume(file: Express.Multer.File): boolean {
     const mimeType = file.mimetype?.toLowerCase() ?? '';
     if (mimeType.includes('pdf')) {
       return true;
