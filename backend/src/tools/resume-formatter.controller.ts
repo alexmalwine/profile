@@ -8,7 +8,9 @@ import {
   UseInterceptors,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
+import type { Multer } from 'multer';
 import { ResumeFormatterService } from './resume-formatter.service';
+import type { FormatResult } from './resume-formatter.service';
 
 @Controller('api/tools/resume-formatter')
 export class ResumeFormatterController {
@@ -28,9 +30,9 @@ export class ResumeFormatterController {
     }),
   )
   formatResume(
-    @UploadedFile() file?: Express.Multer.File,
+    @UploadedFile() file?: Multer.File,
     @Body('formatId') formatId?: string,
-  ) {
+  ): FormatResult {
     if (!file) {
       throw new BadRequestException('Resume file is required.');
     }

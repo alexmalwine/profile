@@ -36,7 +36,7 @@ interface GameState {
   selectionSummary: string;
 }
 
-interface StartResponse {
+export interface StartResponse {
   gameId: string;
   maskedCompany: string;
   guessesLeft: number;
@@ -55,14 +55,14 @@ interface StartResponse {
   incorrectGuesses: string[];
 }
 
-interface GuessResponse extends StartResponse {
+export interface GuessResponse extends StartResponse {
   status: 'in_progress' | 'won' | 'lost';
   alreadyGuessed: boolean;
   revealedCompany?: string;
   jobUrl?: string;
 }
 
-interface TopJobsResponse {
+export interface TopJobsResponse {
   selectionSummary: string;
   jobs: Array<{
     id: string;
