@@ -26,7 +26,7 @@ export class UnemploydleController {
       limits: { fileSize: 5 * 1024 * 1024 },
     }),
   )
-  startGame(@UploadedFile() file?: Multer.File): StartResponse {
+  async startGame(@UploadedFile() file?: Multer.File): Promise<StartResponse> {
     if (!file) {
       throw new BadRequestException('Resume file is required.');
     }
@@ -41,7 +41,9 @@ export class UnemploydleController {
       limits: { fileSize: 5 * 1024 * 1024 },
     }),
   )
-  getTopJobs(@UploadedFile() file?: Multer.File): TopJobsResponse {
+  async getTopJobs(
+    @UploadedFile() file?: Multer.File,
+  ): Promise<TopJobsResponse> {
     if (!file) {
       throw new BadRequestException('Resume file is required.');
     }

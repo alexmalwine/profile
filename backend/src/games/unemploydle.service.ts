@@ -1,11 +1,19 @@
 import {
   BadRequestException,
   Injectable,
+  Logger,
   NotFoundException,
+  ServiceUnavailableException,
 } from '@nestjs/common';
-import { randomUUID } from 'crypto';
+import { createHash, randomUUID } from 'crypto';
 
-type JobSource = 'LinkedIn' | 'Glassdoor' | 'Fortune 500' | 'Company Careers';
+type JobSource =
+  | 'LinkedIn'
+  | 'Glassdoor'
+  | 'Fortune 500'
+  | 'Company Careers'
+  | 'Indeed'
+  | 'Other';
 
 interface JobOpening {
   id: string;
@@ -16,6 +24,7 @@ interface JobOpening {
   rating: number;
   keywords: string[];
   url: string;
+  matchScoreHint?: number;
 }
 
 interface RankedJob extends JobOpening {
@@ -76,7 +85,42 @@ export interface TopJobsResponse {
   }>;
 }
 
+interface JobSearchJob {
+  company?: string;
+  title?: string;
+  location?: string;
+  source?: string;
+  rating?: number;
+  keywords?: string[] | string;
+  url?: string;
+  matchScore?: number;
+  rationale?: string;
+}
+
+interface JobSearchResult {
+  summary?: string;
+  searchQueries?: string[];
+  jobs: JobSearchJob[];
+}
+
+interface JobSearchClient {
+  searchJobs(resumeText: string): Promise<JobSearchResult>;
+}
+
+interface CachedJobSearch {
+  result: JobSearchResult;
+  createdAt: number;
+}
+
 const MAX_GUESSES = 7;
+const CACHE_TTL_MS = 10 * 60 * 1000;
+const CACHE_MAX_ENTRIES = 30;
+const MAX_RESUME_CHARS = 4000;
+const OPENAI_TIMEOUT_MS = 20000;
+const OPENAI_API_URL =
+  process.env.OPENAI_API_URL ?? 'https://api.openai.com/v1/chat/completions';
+const OPENAI_MODEL = process.env.OPENAI_MODEL ?? 'gpt-4o-mini';
+const DEFAULT_RATING = 4.0;
 
 const KNOWN_KEYWORDS = [
   'react',
@@ -102,135 +146,6 @@ const KNOWN_KEYWORDS = [
   'performance',
   'accessibility',
 ];
-
-const JOB_CANDIDATES: JobOpening[] = [
-  {
-    id: 'job-1',
-    company: 'Atlas Systems',
-    title: 'Senior Frontend Engineer',
-    location: 'Remote - US',
-    source: 'LinkedIn',
-    rating: 4.6,
-    keywords: ['react', 'typescript', 'frontend', 'performance', 'ui'],
-    url: 'https://example.com/jobs/atlas-systems-senior-frontend',
-  },
-  {
-    id: 'job-2',
-    company: 'Northwind Dynamics',
-    title: 'Staff Software Engineer, Platform',
-    location: 'Seattle, WA',
-    source: 'Glassdoor',
-    rating: 4.4,
-    keywords: ['backend', 'node', 'docker', 'observability', 'testing'],
-    url: 'https://example.com/jobs/northwind-staff-platform',
-  },
-  {
-    id: 'job-3',
-    company: 'Venture Harbor',
-    title: 'Fullstack Engineer',
-    location: 'New York, NY',
-    source: 'Fortune 500',
-    rating: 4.1,
-    keywords: ['fullstack', 'react', 'node', 'postgres', 'graphql'],
-    url: 'https://example.com/jobs/venture-harbor-fullstack',
-  },
-  {
-    id: 'job-4',
-    company: 'Aurora Labs',
-    title: 'Software Engineer, Developer Experience',
-    location: 'Remote - Americas',
-    source: 'Company Careers',
-    rating: 4.8,
-    keywords: ['typescript', 'testing', 'observability', 'frontend'],
-    url: 'https://example.com/jobs/aurora-labs-dx',
-  },
-  {
-    id: 'job-5',
-    company: 'Silverline Capital',
-    title: 'Backend Engineer',
-    location: 'Chicago, IL',
-    source: 'LinkedIn',
-    rating: 4.0,
-    keywords: ['backend', 'node', 'postgres', 'redis', 'rest'],
-    url: 'https://example.com/jobs/silverline-backend',
-  },
-  {
-    id: 'job-6',
-    company: 'Evergreen Commerce',
-    title: 'Frontend Engineer',
-    location: 'Austin, TX',
-    source: 'Glassdoor',
-    rating: 4.2,
-    keywords: ['react', 'javascript', 'ui', 'accessibility'],
-    url: 'https://example.com/jobs/evergreen-frontend',
-  },
-  {
-    id: 'job-7',
-    company: 'Pioneer Freight',
-    title: 'Software Engineer, Growth',
-    location: 'Remote - Global',
-    source: 'Fortune 500',
-    rating: 4.3,
-    keywords: ['frontend', 'performance', 'testing', 'react'],
-    url: 'https://example.com/jobs/pioneer-growth',
-  },
-  {
-    id: 'job-8',
-    company: 'Nimbus Health',
-    title: 'Fullstack Engineer, Integrations',
-    location: 'Boston, MA',
-    source: 'Company Careers',
-    rating: 4.5,
-    keywords: ['fullstack', 'node', 'rest', 'graphql', 'typescript'],
-    url: 'https://example.com/jobs/nimbus-integrations',
-  },
-  {
-    id: 'job-9',
-    company: 'Helios Mobility',
-    title: 'Platform Engineer',
-    location: 'San Francisco, CA',
-    source: 'LinkedIn',
-    rating: 4.7,
-    keywords: ['backend', 'kubernetes', 'docker', 'aws', 'observability'],
-    url: 'https://example.com/jobs/helios-platform',
-  },
-  {
-    id: 'job-10',
-    company: 'Summit Analytics',
-    title: 'Software Engineer, Data Platform',
-    location: 'Denver, CO',
-    source: 'Glassdoor',
-    rating: 4.1,
-    keywords: ['backend', 'aws', 'postgres', 'testing', 'python'],
-    url: 'https://example.com/jobs/summit-data-platform',
-  },
-  {
-    id: 'job-11',
-    company: 'Blue Orchid',
-    title: 'Senior Frontend Engineer, Design Systems',
-    location: 'Remote - US',
-    source: 'Company Careers',
-    rating: 4.6,
-    keywords: ['react', 'frontend', 'ui', 'accessibility', 'typescript'],
-    url: 'https://example.com/jobs/blue-orchid-design-systems',
-  },
-  {
-    id: 'job-12',
-    company: 'Ironwood Partners',
-    title: 'Software Engineer, Core Services',
-    location: 'Atlanta, GA',
-    source: 'Fortune 500',
-    rating: 4.0,
-    keywords: ['backend', 'node', 'rest', 'docker', 'testing'],
-    url: 'https://example.com/jobs/ironwood-core-services',
-  },
-];
-
-const fetchJobCandidates = () => {
-  // TODO: Replace with real job ingestion from LinkedIn, Glassdoor,
-  // Fortune 500 career pages, and other sources.
-  return JOB_CANDIDATES;
-};
 
 const sanitizeLetter = (letter: string) => letter.trim().toUpperCase();
 
@@ -259,6 +174,11 @@ const extractResumeKeywords = (resumeText: string) => {
   return matches;
 };
 
+const extractKeywordsFromText = (text: string) => {
+  const lower = text.toLowerCase();
+  return KNOWN_KEYWORDS.filter((keyword) => lower.includes(keyword));
+};
+
 const computeMatchScore = (job: JobOpening, resumeKeywords: Set<string>) => {
   if (job.keywords.length === 0) {
     return 0.4;
@@ -270,39 +190,338 @@ const computeMatchScore = (job: JobOpening, resumeKeywords: Set<string>) => {
   return matches / job.keywords.length;
 };
 
-const rankJobs = (resumeText: string) => {
-  const resumeKeywords = extractResumeKeywords(resumeText);
+const clampNumber = (value: number, min: number, max: number) =>
+  Math.min(max, Math.max(min, value));
 
-  // TODO: Replace with real job ingestion and LLM ranking.
-  return fetchJobCandidates().map((job) => {
-    const matchScore = computeMatchScore(job, resumeKeywords);
-    const ratingScore = job.rating / 5;
-    const overallScore = matchScore * 0.7 + ratingScore * 0.3;
+const toNonEmptyString = (value: unknown) => {
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    return trimmed.length > 0 ? trimmed : null;
+  }
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return String(value);
+  }
+  return null;
+};
+
+const normalizeJobSource = (value: unknown): JobSource => {
+  const source = String(value ?? '').toLowerCase();
+  if (source.includes('linkedin')) {
+    return 'LinkedIn';
+  }
+  if (source.includes('glassdoor')) {
+    return 'Glassdoor';
+  }
+  if (source.includes('fortune')) {
+    return 'Fortune 500';
+  }
+  if (source.includes('indeed')) {
+    return 'Indeed';
+  }
+  if (source.includes('career') || source.includes('company')) {
+    return 'Company Careers';
+  }
+  return 'Other';
+};
+
+const normalizeKeywords = (value: unknown) => {
+  const keywords = Array.isArray(value)
+    ? value
+        .map((keyword) => String(keyword).toLowerCase().trim())
+        .filter(Boolean)
+    : typeof value === 'string'
+      ? value
+          .split(/[,/|]/)
+          .map((keyword) => keyword.toLowerCase().trim())
+          .filter(Boolean)
+      : [];
+
+  return Array.from(new Set(keywords));
+};
+
+const normalizeMatchScore = (value: unknown) => {
+  if (typeof value !== 'number' || Number.isNaN(value)) {
+    return null;
+  }
+
+  if (value > 1) {
+    return clampNumber(value / 100, 0, 1);
+  }
+
+  return clampNumber(value, 0, 1);
+};
+
+const buildJobId = (
+  company: string,
+  title: string,
+  location: string,
+  url: string,
+) =>
+  createHash('sha256')
+    .update(`${company}|${title}|${location}|${url}`)
+    .digest('hex')
+    .slice(0, 12);
+
+const buildFallbackUrl = (
+  source: JobSource,
+  company: string,
+  title: string,
+  location: string,
+) => {
+  const query = encodeURIComponent(`${title} ${company} ${location}`.trim());
+  switch (source) {
+    case 'LinkedIn':
+      return `https://www.linkedin.com/jobs/search/?keywords=${query}`;
+    case 'Glassdoor':
+      return `https://www.glassdoor.com/Job/jobs.htm?sc.keyword=${query}`;
+    case 'Indeed':
+      return `https://www.indeed.com/jobs?q=${query}`;
+    case 'Company Careers':
+      return `https://www.google.com/search?q=${encodeURIComponent(
+        `${company} careers ${title}`,
+      )}`;
+    case 'Fortune 500':
+    case 'Other':
+    default:
+      return `https://www.google.com/search?q=${query}`;
+  }
+};
+
+const normalizeUrl = (
+  value: unknown,
+  source: JobSource,
+  company: string,
+  title: string,
+  location: string,
+) => {
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    if (/^https?:\/\//i.test(trimmed)) {
+      return trimmed;
+    }
+  }
+
+  return buildFallbackUrl(source, company, title, location);
+};
+
+const safeParseJson = (text: string) => {
+  const cleaned = text.replace(/```(?:json)?/gi, '').replace(/```/g, '').trim();
+  try {
+    return JSON.parse(cleaned);
+  } catch {
+    const start = cleaned.indexOf('{');
+    const end = cleaned.lastIndexOf('}');
+    if (start >= 0 && end > start) {
+      try {
+        return JSON.parse(cleaned.slice(start, end + 1));
+      } catch {
+        return null;
+      }
+    }
+  }
+  return null;
+};
+
+const truncateText = (text: string, maxChars: number) =>
+  text.length > maxChars ? text.slice(0, maxChars) : text;
+
+const buildSelectionSummary = (
+  result: JobSearchResult,
+  suffix: string,
+) => {
+  const summary =
+    toNonEmptyString(result.summary) ??
+    'ChatGPT searched job sites for the best resume matches.';
+  const queries = Array.isArray(result.searchQueries)
+    ? result.searchQueries.map((query) => String(query).trim()).filter(Boolean)
+    : [];
+  const querySnippet = queries.length
+    ? `Search queries: ${queries.slice(0, 3).join(' | ')}.`
+    : '';
+
+  return [summary, querySnippet, suffix].filter(Boolean).join(' ');
+};
+
+const normalizeJobResults = (jobs: JobSearchJob[]) => {
+  const normalized: JobOpening[] = [];
+  const seen = new Set<string>();
+
+  jobs.forEach((job) => {
+    const company = toNonEmptyString(job.company);
+    const title = toNonEmptyString(job.title);
+    if (!company || !title) {
+      return;
+    }
+
+    const location = toNonEmptyString(job.location) ?? 'Remote';
+    const source = normalizeJobSource(job.source);
+    const rating = clampNumber(
+      typeof job.rating === 'number' ? job.rating : DEFAULT_RATING,
+      1,
+      5,
+    );
+    const providedKeywords = normalizeKeywords(job.keywords);
+    const keywords =
+      providedKeywords.length > 0
+        ? providedKeywords
+        : extractKeywordsFromText(`${title} ${company} ${location}`);
+    const url = normalizeUrl(job.url, source, company, title, location);
+    const matchScoreHint = normalizeMatchScore(job.matchScore) ?? undefined;
+    const id = buildJobId(company, title, location, url);
+    const key = `${company.toLowerCase()}|${title.toLowerCase()}|${location.toLowerCase()}`;
+
+    if (seen.has(key)) {
+      return;
+    }
+
+    seen.add(key);
+    normalized.push({
+      id,
+      company,
+      title,
+      location,
+      source,
+      rating,
+      keywords,
+      url,
+      matchScoreHint,
+    });
+  });
+
+  return normalized;
+};
+
+class ChatGptJobSearchClient implements JobSearchClient {
+  private readonly apiKey = process.env.OPENAI_API_KEY;
+  private readonly model = OPENAI_MODEL;
+  private readonly apiUrl = OPENAI_API_URL;
+  private readonly logger = new Logger(ChatGptJobSearchClient.name);
+
+  constructor(private readonly fetcher: typeof fetch = fetch) {}
+
+  async searchJobs(resumeText: string): Promise<JobSearchResult> {
+    if (!this.apiKey) {
+      throw new ServiceUnavailableException(
+        'OPENAI_API_KEY is not configured for job search.',
+      );
+    }
+
+    const trimmedResume = truncateText(resumeText, MAX_RESUME_CHARS);
+    const requestBody = {
+      model: this.model,
+      messages: [
+        {
+          role: 'system',
+          content:
+            'You are a job search engine. Use the resume to find relevant job ' +
+            'openings on LinkedIn, Glassdoor, Indeed, and company career pages. ' +
+            'Respond with JSON only.',
+        },
+        {
+          role: 'user',
+          content:
+            'Return JSON with fields summary, searchQueries, and jobs. ' +
+            'summary: 1-2 sentences about how the search was performed. ' +
+            'searchQueries: 5-8 queries you would run. ' +
+            'jobs: 12-15 openings with company, title, location, source, rating ' +
+            '(1-5), keywords (skills), url, matchScore (0-100), and rationale. ' +
+            'Use real job boards in the source field. Only return JSON.\n\n' +
+            `Resume:\n${trimmedResume}`,
+        },
+      ],
+      temperature: 0.2,
+      max_tokens: 1200,
+    };
+
+    const controller = new AbortController();
+    const timeoutId = setTimeout(
+      () => controller.abort(),
+      OPENAI_TIMEOUT_MS,
+    );
+
+    let response: Response;
+    try {
+      response = await this.fetcher(this.apiUrl, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${this.apiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(requestBody),
+        signal: controller.signal,
+      });
+    } catch (error) {
+      if (error instanceof Error && error.name === 'AbortError') {
+        throw new ServiceUnavailableException(
+          'ChatGPT job search timed out.',
+        );
+      }
+      throw new ServiceUnavailableException('ChatGPT job search failed.');
+    } finally {
+      clearTimeout(timeoutId);
+    }
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      this.logger.warn(
+        `OpenAI API error ${response.status}: ${errorText.slice(0, 200)}`,
+      );
+      throw new ServiceUnavailableException('ChatGPT job search failed.');
+    }
+
+    let payload: any;
+    try {
+      payload = await response.json();
+    } catch {
+      throw new ServiceUnavailableException('ChatGPT returned invalid JSON.');
+    }
+
+    const content = payload?.choices?.[0]?.message?.content;
+    if (!content) {
+      throw new ServiceUnavailableException(
+        'ChatGPT did not return job results.',
+      );
+    }
+
+    // Defensive parse in case the model wraps JSON.
+    const parsed = safeParseJson(content);
+    if (!parsed || !Array.isArray(parsed.jobs)) {
+      throw new ServiceUnavailableException(
+        'ChatGPT response was missing job results.',
+      );
+    }
 
     return {
-      ...job,
-      matchScore,
-      overallScore,
+      summary: toNonEmptyString(parsed.summary) ?? '',
+      searchQueries: Array.isArray(parsed.searchQueries)
+        ? parsed.searchQueries.map((query: unknown) => String(query).trim())
+        : [],
+      jobs: parsed.jobs as JobSearchJob[],
     };
-  })
-    .sort((a, b) => b.overallScore - a.overallScore)
-    .slice(0, 10);
-};
+  }
+}
 
 @Injectable()
 export class UnemploydleService {
   private readonly games = new Map<string, GameState>();
+  private readonly searchCache = new Map<string, CachedJobSearch>();
+  private readonly logger = new Logger(UnemploydleService.name);
 
-  startGame(resumeText: string): StartResponse {
-    const rankedJobs = rankJobs(resumeText);
+  constructor(
+    private readonly jobSearchClient: JobSearchClient = new ChatGptJobSearchClient(),
+  ) {}
+
+  async startGame(resumeText: string): Promise<StartResponse> {
+    const { rankedJobs, searchResult } = await this.rankJobs(resumeText);
     const selectedJob =
       rankedJobs[Math.floor(Math.random() * rankedJobs.length)];
 
     const guessedLetters = new Set<string>();
     const maskedCompany = maskCompanyName(selectedJob.company, guessedLetters);
-    const selectionSummary =
-      'Ranked openings with a resume match, company ratings, and ' +
-      'LLM-style scoring. Selected a random company from the top 10.';
+    const selectionSummary = buildSelectionSummary(
+      searchResult,
+      'Selected a random company from the top 10 matches.',
+    );
 
     const game: GameState = {
       id: randomUUID(),
@@ -323,12 +542,13 @@ export class UnemploydleService {
     return this.buildStartResponse(game);
   }
 
-  getTopJobs(resumeText: string): TopJobsResponse {
-    const rankedJobs = rankJobs(resumeText);
+  async getTopJobs(resumeText: string): Promise<TopJobsResponse> {
+    const { rankedJobs, searchResult } = await this.rankJobs(resumeText);
     return {
-      selectionSummary:
-        'Ranked openings with a resume match, company ratings, and ' +
-        'LLM-style scoring. Showing the top 10 matches.',
+      selectionSummary: buildSelectionSummary(
+        searchResult,
+        'Showing the top 10 matches.',
+      ),
       jobs: rankedJobs.map((job) => ({
         id: job.id,
         company: job.company,
@@ -406,6 +626,37 @@ export class UnemploydleService {
     return 'in_progress' as const;
   }
 
+  private async rankJobs(resumeText: string) {
+    const resumeKeywords = extractResumeKeywords(resumeText);
+    const searchResult = await this.getSearchResult(resumeText);
+    const normalizedJobs = normalizeJobResults(searchResult.jobs ?? []);
+
+    if (normalizedJobs.length === 0) {
+      this.logger.warn('ChatGPT returned no usable job results.');
+      throw new ServiceUnavailableException('No job matches were returned.');
+    }
+
+    const rankedJobs = normalizedJobs
+      .map((job) => {
+        const matchScore =
+          typeof job.matchScoreHint === 'number'
+            ? clampNumber(job.matchScoreHint, 0, 1)
+            : computeMatchScore(job, resumeKeywords);
+        const ratingScore = job.rating / 5;
+        const overallScore = matchScore * 0.75 + ratingScore * 0.25;
+
+        return {
+          ...job,
+          matchScore,
+          overallScore,
+        };
+      })
+      .sort((a, b) => b.overallScore - a.overallScore)
+      .slice(0, 10);
+
+    return { rankedJobs, searchResult };
+  }
+
   private buildStartResponse(game: GameState): StartResponse {
     return {
       gameId: game.id,
@@ -438,6 +689,41 @@ export class UnemploydleService {
 
     if (oldestGame) {
       this.games.delete(oldestGame.id);
+    }
+  }
+
+  private async getSearchResult(resumeText: string) {
+    const cacheKey = createHash('sha256').update(resumeText).digest('hex');
+    const cached = this.searchCache.get(cacheKey);
+
+    if (cached && Date.now() - cached.createdAt < CACHE_TTL_MS) {
+      return cached.result;
+    }
+
+    if (cached) {
+      this.searchCache.delete(cacheKey);
+    }
+
+    const result = await this.jobSearchClient.searchJobs(resumeText);
+    this.searchCache.set(cacheKey, { result, createdAt: Date.now() });
+    this.cleanupSearchCache();
+    return result;
+  }
+
+  private cleanupSearchCache() {
+    if (this.searchCache.size <= CACHE_MAX_ENTRIES) {
+      return;
+    }
+
+    const entries = Array.from(this.searchCache.entries()).sort(
+      (a, b) => a[1].createdAt - b[1].createdAt,
+    );
+
+    while (this.searchCache.size > CACHE_MAX_ENTRIES && entries.length > 0) {
+      const oldest = entries.shift();
+      if (oldest) {
+        this.searchCache.delete(oldest[0]);
+      }
     }
   }
 }
