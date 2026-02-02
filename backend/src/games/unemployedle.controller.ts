@@ -10,10 +10,10 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import type { Multer } from 'multer';
 import { UnemployedleService } from './unemployedle.service';
 import type {
+  GuessResponse,
   StartResponse,
   TopJobsResponse,
-  GuessResponse,
-} from './unemployedle.service';
+} from './unemployedle/types';
 
 interface GuessRequest {
   gameId: string;
