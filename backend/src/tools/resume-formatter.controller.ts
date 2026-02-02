@@ -10,7 +10,7 @@ import {
 import { FileInterceptor } from '@nestjs/platform-express';
 import type { Multer } from 'multer';
 import { ResumeFormatterService } from './resume-formatter.service';
-import type { FormatResult } from './resume-formatter.service';
+import type { FormatResult } from './resume-formatter/types';
 
 @Controller('api/tools/resume-formatter')
 export class ResumeFormatterController {
