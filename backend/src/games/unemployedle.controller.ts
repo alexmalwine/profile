@@ -5,12 +5,14 @@ import {
   Logger,
   Post,
   UploadedFile,
+  UseGuards,
   UseInterceptors,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import type { Express } from 'express';
 import pdfParse from 'pdf-parse';
 import { UnemployedleService } from './unemployedle.service';
+import { UnemployedleRateLimitGuard } from './unemployedle/rate-limit.guard';
 import type {
   GuessResponse,
   StartResponse,
@@ -33,6 +35,7 @@ export class UnemployedleController {
   constructor(private readonly unemployedleService: UnemployedleService) {}
 
   @Post('start')
+  @UseGuards(UnemployedleRateLimitGuard)
   @UseInterceptors(
     FileInterceptor('resume', {
       limits: { fileSize: 5 * 1024 * 1024 },
@@ -50,6 +53,7 @@ export class UnemployedleController {
   }
 
   @Post('jobs')
+  @UseGuards(UnemployedleRateLimitGuard)
   @UseInterceptors(
     FileInterceptor('resume', {
       limits: { fileSize: 5 * 1024 * 1024 },

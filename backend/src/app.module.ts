@@ -4,6 +4,7 @@ import { AppService } from './app.service';
 import { UnemployedleController } from './games/unemployedle.controller';
 import { UnemployedleService } from './games/unemployedle.service';
 import { ChatGptJobSearchClient } from './games/unemployedle/job-search.client';
+import { UnemployedleRateLimitGuard } from './games/unemployedle/rate-limit.guard';
 import { ResumeFormatterController } from './tools/resume-formatter.controller';
 import { ResumeFormatterService } from './tools/resume-formatter.service';
 
@@ -14,6 +15,12 @@ import { ResumeFormatterService } from './tools/resume-formatter.service';
     UnemployedleController,
     ResumeFormatterController,
   ],
-  providers: [AppService, UnemployedleService, ChatGptJobSearchClient, ResumeFormatterService],
+  providers: [
+    AppService,
+    UnemployedleService,
+    ChatGptJobSearchClient,
+    UnemployedleRateLimitGuard,
+    ResumeFormatterService,
+  ],
 })
 export class AppModule {}
