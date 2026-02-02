@@ -10,7 +10,7 @@ interface ResumeFormat {
   mimeType: string;
 }
 
-interface FormatResult {
+export interface FormatResult {
   formatId: ResumeFormatId;
   formatLabel: string;
   content: string;

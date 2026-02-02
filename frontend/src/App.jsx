@@ -529,7 +529,7 @@ function App() {
               <article className="project-card">
                 <div className="project-top">
                   <h3>Matching Experience & Search</h3>
-                  <span className="tag">Lead Engineer</span>
+                  <span className="tag">Full Stack Engineer</span>
                 </div>
                 <p>
                   Built a new matching experience with a React UI and

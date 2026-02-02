@@ -7,7 +7,9 @@ import {
   UseInterceptors,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
+import type { Multer } from 'multer';
 import { UnemploydleService } from './unemploydle.service';
+import type { StartResponse, TopJobsResponse, GuessResponse } from './unemploydle.service';
 
 interface GuessRequest {
   gameId: string;
@@ -24,7 +26,7 @@ export class UnemploydleController {
       limits: { fileSize: 5 * 1024 * 1024 },
     }),
   )
-  startGame(@UploadedFile() file?: Express.Multer.File) {
+  startGame(@UploadedFile() file?: Multer.File): StartResponse {
     if (!file) {
       throw new BadRequestException('Resume file is required.');
     }
@@ -39,7 +41,7 @@ export class UnemploydleController {
       limits: { fileSize: 5 * 1024 * 1024 },
     }),
   )
-  getTopJobs(@UploadedFile() file?: Express.Multer.File) {
+  getTopJobs(@UploadedFile() file?: Multer.File): TopJobsResponse {
     if (!file) {
       throw new BadRequestException('Resume file is required.');
     }
@@ -49,7 +51,7 @@ export class UnemploydleController {
   }
 
   @Post('guess')
-  guess(@Body() body: GuessRequest) {
+  guess(@Body() body: GuessRequest): GuessResponse {
     if (!body?.gameId || !body?.letter) {
       throw new BadRequestException('gameId and letter are required.');
     }
