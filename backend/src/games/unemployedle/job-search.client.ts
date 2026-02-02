@@ -1,15 +1,15 @@
-import { Injectable, Logger, ServiceUnavailableException } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  ServiceUnavailableException,
+} from '@nestjs/common';
 import {
   MAX_RESUME_CHARS,
   OPENAI_API_URL,
   OPENAI_MODEL,
   OPENAI_TIMEOUT_MS,
 } from './constants';
-import {
-  safeParseJson,
-  toNonEmptyString,
-  truncateText,
-} from './job-utils';
+import { safeParseJson, toNonEmptyString, truncateText } from './job-utils';
 import type { JobSearchClient, JobSearchJob, JobSearchResult } from './types';
 
 @Injectable()
@@ -58,13 +58,11 @@ export class ChatGptJobSearchClient implements JobSearchClient {
       ],
       temperature: 0.2,
       max_tokens: 1200,
+      response_format: { type: 'json_object' },
     };
 
     const controller = new AbortController();
-    const timeoutId = setTimeout(
-      () => controller.abort(),
-      OPENAI_TIMEOUT_MS,
-    );
+    const timeoutId = setTimeout(() => controller.abort(), OPENAI_TIMEOUT_MS);
 
     let response: Response;
     console.log('Sending ChatGPT job search request:', requestBody);
@@ -80,9 +78,7 @@ export class ChatGptJobSearchClient implements JobSearchClient {
       });
     } catch (error) {
       if (error instanceof Error && error.name === 'AbortError') {
-        throw new ServiceUnavailableException(
-          'ChatGPT job search timed out.',
-        );
+        throw new ServiceUnavailableException('ChatGPT job search timed out.');
       }
       throw new ServiceUnavailableException('ChatGPT job search failed.');
     } finally {
