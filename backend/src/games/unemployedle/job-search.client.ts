@@ -58,6 +58,7 @@ export class ChatGptJobSearchClient implements JobSearchClient {
       ],
       temperature: 0.2,
       max_tokens: 1200,
+      response_format: { type: 'json_object' },
     };
 
     const controller = new AbortController();

@@ -2,12 +2,14 @@ import {
   BadRequestException,
   Body,
   Controller,
+  Logger,
   Post,
   UploadedFile,
   UseInterceptors,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import type { Multer } from 'multer';
+import pdfParse from 'pdf-parse';
 import { UnemployedleService } from './unemployedle.service';
 import type {
   GuessResponse,
@@ -22,6 +24,8 @@ interface GuessRequest {
 
 @Controller('api/games/unemployedle')
 export class UnemployedleController {
+  private readonly logger = new Logger(UnemployedleController.name);
+
   constructor(private readonly unemployedleService: UnemployedleService) {}
 
   @Post('start')
@@ -35,7 +39,7 @@ export class UnemployedleController {
       throw new BadRequestException('Resume file is required.');
     }
 
-    const resumeText = file.buffer.toString('utf-8');
+    const resumeText = await this.extractResumeText(file);
     return this.unemployedleService.startGame(resumeText);
   }
 
@@ -52,7 +56,7 @@ export class UnemployedleController {
       throw new BadRequestException('Resume file is required.');
     }
 
-    const resumeText = file.buffer.toString('utf-8');
+    const resumeText = await this.extractResumeText(file);
     return this.unemployedleService.getTopJobs(resumeText);
   }
 
@@ -63,5 +67,53 @@ export class UnemployedleController {
     }
 
     return this.unemployedleService.guess(body.gameId, body.letter);
+  }
+
+  private async extractResumeText(file: Multer.File): Promise<string> {
+    if (this.isPdfResume(file)) {
+      try {
+        const parsed = await pdfParse(file.buffer);
+        const normalized = this.normalizeResumeText(parsed.text ?? '');
+        if (normalized) {
+          return normalized;
+        }
+        this.logger.warn(
+          'PDF resume parsed but contained no text. Falling back to raw text.',
+        );
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'Unknown error';
+        this.logger.warn(
+          `PDF resume parsing failed. Falling back to raw text. ${message}`,
+        );
+      }
+    }
+
+    return this.normalizeResumeText(file.buffer.toString('utf-8'));
+  }
+
+  private isPdfResume(file: Multer.File): boolean {
+    const mimeType = file.mimetype?.toLowerCase() ?? '';
+    if (mimeType.includes('pdf')) {
+      return true;
+    }
+
+    const name = file.originalname?.toLowerCase() ?? '';
+    if (name.endsWith('.pdf')) {
+      return true;
+    }
+
+    const header = file.buffer?.subarray(0, 5).toString('utf-8') ?? '';
+    return header.startsWith('%PDF-');
+  }
+
+  private normalizeResumeText(text: string): string {
+    const withoutControls = text
+      .replace(/\r\n/g, '\n')
+      .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, '')
+      .replace(/\t/g, ' ')
+      .replace(/[ ]{2,}/g, ' ')
+      .replace(/\n{3,}/g, '\n\n');
+
+    return withoutControls.trim();
   }
 }
