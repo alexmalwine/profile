@@ -54,6 +54,11 @@ export class ChatGptJobSearchClient implements JobSearchClient {
             'jobs: 12 openings aligned to the resume focus with company, ' +
             'title, location, source, rating (1-5), keywords (3-6 items), url, ' +
             'matchScore (0-100), and rationale (<=20 words). ' +
+            'url must be a search-results URL (not a job detail page). ' +
+            'Use LinkedIn https://www.linkedin.com/jobs/search/?keywords=...; ' +
+            'Indeed https://www.indeed.com/jobs?q=...; ' +
+            'Glassdoor https://www.glassdoor.com/Job/jobs.htm?sc.keyword=...; ' +
+            'Company Careers use a Google search URL. ' +
             'Use real job boards in the source field. Keep values concise, ' +
             'avoid extra whitespace or Markdown, and return JSON only.\n\n' +
             `Resume:\n${trimmedResume}`,

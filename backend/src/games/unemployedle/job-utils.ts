@@ -151,6 +151,43 @@ export const buildFallbackUrl = (
   }
 };
 
+const isSearchUrl = (value: string, source: JobSource) => {
+  try {
+    const url = new URL(value);
+    const host = url.hostname.toLowerCase();
+    const path = url.pathname.toLowerCase();
+
+    switch (source) {
+      case 'LinkedIn':
+        return (
+          host.endsWith('linkedin.com') &&
+          path.startsWith('/jobs/search') &&
+          url.searchParams.has('keywords')
+        );
+      case 'Glassdoor':
+        return (
+          host.endsWith('glassdoor.com') &&
+          path.includes('/job') &&
+          path.endsWith('jobs.htm') &&
+          url.searchParams.has('sc.keyword')
+        );
+      case 'Indeed':
+        return (
+          host.endsWith('indeed.com') &&
+          path.startsWith('/jobs') &&
+          url.searchParams.has('q')
+        );
+      case 'Company Careers':
+      case 'Fortune 500':
+      case 'Other':
+      default:
+        return false;
+    }
+  } catch {
+    return false;
+  }
+};
+
 export const normalizeUrl = (
   value: unknown,
   source: JobSource,
@@ -160,7 +197,7 @@ export const normalizeUrl = (
 ) => {
   if (typeof value === 'string') {
     const trimmed = value.trim();
-    if (/^https?:\/\//i.test(trimmed)) {
+    if (isSearchUrl(trimmed, source)) {
       return trimmed;
     }
   }
