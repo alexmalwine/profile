@@ -51,6 +51,15 @@ export class UnemployedleService {
     /job (has )?expired/i,
     /this job (has )?expired/i,
     /role (has )?been closed/i,
+    /page not found/i,
+    /we (couldn't|cant|can't) find (that|this) job/i,
+    /we (couldn't|cant|can't) find the page/i,
+    /this job is no longer available/i,
+    /job is no longer available/i,
+    /job has been removed/i,
+    /job is no longer accepting applications/i,
+    /job opening is no longer available/i,
+    /job posting is no longer available/i,
   ];
 
   constructor(private readonly jobSearchClient: ChatGptJobSearchClient) {}
@@ -327,7 +336,10 @@ export class UnemployedleService {
     return null;
   }
 
-  private async checkUrl(url: string, job: JobOpening): Promise<'valid' | 'invalid'> {
+  private async checkUrl(
+    url: string,
+    job: JobOpening,
+  ): Promise<'valid' | 'invalid'> {
     const controller = new AbortController();
     const timeoutId = setTimeout(
       () => controller.abort(),
@@ -359,15 +371,33 @@ export class UnemployedleService {
       }
 
       const contentType = response.headers.get('content-type')?.toLowerCase();
-      if (!contentType || contentType.includes('text') || contentType.includes('html')) {
+      if (
+        !contentType ||
+        contentType.includes('text') ||
+        contentType.includes('html')
+      ) {
         const text = await response.text();
-        if (this.containsNotFoundMessage(text)) {
+        const truncated = text.slice(0, 200_000);
+
+        if (this.containsNotFoundMessage(truncated)) {
           return 'invalid';
         }
-        if (!this.matchesJobTitle(text, job.title)) {
+
+        const jobPostingTitles = this.extractJobPostingTitles(truncated);
+        if (jobPostingTitles.length > 0) {
+          const matchesSchemaTitle = jobPostingTitles.some((title) =>
+            this.matchesJobTitleText(title, job.title),
+          );
+          return matchesSchemaTitle ? 'valid' : 'invalid';
+        }
+
+        if (!this.containsJobPostingSchema(truncated)) {
           return 'invalid';
         }
-        return 'valid';
+
+        return this.matchesJobTitleText(truncated, job.title)
+          ? 'valid'
+          : 'invalid';
       }
 
       return 'invalid';
@@ -385,8 +415,8 @@ export class UnemployedleService {
     return this.jobNotFoundPatterns.some((pattern) => pattern.test(text));
   }
 
-  private matchesJobTitle(html: string, title: string) {
-    const text = html.slice(0, 200_000).toLowerCase();
+  private matchesJobTitleText(text: string, title: string) {
+    const normalized = text.toLowerCase();
     const tokens = title
       .toLowerCase()
       .match(/[a-z0-9]+/g)
@@ -398,13 +428,85 @@ export class UnemployedleService {
 
     let matches = 0;
     tokens.forEach((token) => {
-      if (text.includes(token)) {
+      if (normalized.includes(token)) {
         matches += 1;
       }
     });
 
     const requiredMatches = Math.min(2, tokens.length);
     return matches >= requiredMatches;
+  }
+
+  private containsJobPostingSchema(html: string) {
+    return /schema\.org\/JobPosting/i.test(html);
+  }
+
+  private extractJobPostingTitles(html: string) {
+    const titles: string[] = [];
+    const scriptRegex =
+      /<script[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi;
+    let match: RegExpExecArray | null;
+
+    while ((match = scriptRegex.exec(html)) !== null) {
+      const raw = match[1]?.trim();
+      if (!raw) {
+        continue;
+      }
+      try {
+        const parsed = JSON.parse(raw);
+        this.collectJobPostingTitles(parsed, titles);
+      } catch {
+        // ignore invalid json-ld blocks
+      }
+    }
+
+    return titles.filter(Boolean);
+  }
+
+  private collectJobPostingTitles(value: unknown, titles: string[]) {
+    if (!value) {
+      return;
+    }
+    if (Array.isArray(value)) {
+      value.forEach((entry) => this.collectJobPostingTitles(entry, titles));
+      return;
+    }
+    if (typeof value !== 'object') {
+      return;
+    }
+
+    const record = value as Record<string, unknown>;
+    const type = record['@type'];
+    const graph = record['@graph'];
+
+    if (graph) {
+      this.collectJobPostingTitles(graph, titles);
+    }
+
+    const types = Array.isArray(type) ? type : [type];
+    const hasJobPosting = types.some(
+      (item) =>
+        typeof item === 'string' &&
+        item.toLowerCase().includes('jobposting'),
+    );
+
+    if (hasJobPosting) {
+      const title =
+        typeof record.title === 'string'
+          ? record.title
+          : typeof record.name === 'string'
+            ? record.name
+            : null;
+      if (title) {
+        titles.push(title);
+      }
+    }
+
+    Object.values(record).forEach((entry) => {
+      if (typeof entry === 'object') {
+        this.collectJobPostingTitles(entry, titles);
+      }
+    });
   }
 
   private applyCompanyDiversity(jobs: GameState['job'][]) {
