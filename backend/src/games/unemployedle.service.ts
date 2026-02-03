@@ -7,6 +7,7 @@ import {
 } from '@nestjs/common';
 import { createHash, randomUUID } from 'crypto';
 import {
+  COMPANY_SIZE_LIMITS,
   CACHE_MAX_ENTRIES,
   CACHE_TTL_MS,
   MAX_GUESSES,
@@ -18,10 +19,12 @@ import {
   computeMatchScore,
   extractResumeKeywords,
   maskCompanyName,
+  normalizeCompanyKey,
   normalizeJobResults,
   sanitizeLetter,
 } from './unemployedle/job-utils';
 import {
+  type CompanySize,
   type CachedJobSearch,
   type GameState,
   type GuessResponse,
@@ -179,10 +182,11 @@ export class UnemployedleService {
           overallScore,
         };
       })
-      .sort((a, b) => b.overallScore - a.overallScore)
-      .slice(0, 10);
+      .sort((a, b) => b.overallScore - a.overallScore);
 
-    return { rankedJobs, searchResult };
+    const diversifiedJobs = this.applyCompanyDiversity(rankedJobs).slice(0, 10);
+
+    return { rankedJobs: diversifiedJobs, searchResult };
   }
 
   private buildStartResponse(
@@ -218,6 +222,38 @@ export class UnemployedleService {
       return undefined;
     }
     return game.job.companyHint;
+  }
+
+  private applyCompanyDiversity(jobs: GameState['job'][]) {
+    const seenCompanies = new Set<string>();
+    const sizeCounts: Record<CompanySize, number> = {
+      large: 0,
+      mid: 0,
+      startup: 0,
+    };
+    const diversified: GameState['job'][] = [];
+
+    for (const job of jobs) {
+      const companyKey = normalizeCompanyKey(job.company);
+      if (seenCompanies.has(companyKey)) {
+        continue;
+      }
+
+      const size = job.companySize ?? 'mid';
+      if (sizeCounts[size] >= COMPANY_SIZE_LIMITS[size]) {
+        continue;
+      }
+
+      seenCompanies.add(companyKey);
+      sizeCounts[size] += 1;
+      diversified.push(job);
+
+      if (diversified.length >= 10) {
+        break;
+      }
+    }
+
+    return diversified;
   }
 
   private cleanupOldGames() {

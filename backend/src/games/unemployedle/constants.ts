@@ -15,6 +15,11 @@ export const OPENAI_MAX_TOKENS = parsePositiveNumber(
   process.env.OPENAI_MAX_TOKENS,
   1800,
 );
+export const COMPANY_SIZE_LIMITS = {
+  large: 4,
+  mid: 4,
+  startup: 4,
+} as const;
 export const DEFAULT_RATING = 4.0;
 export const UNEMPLOYEDLE_RATE_LIMIT_WINDOW_MS = parsePositiveNumber(
   process.env.UNEMPLOYEDLE_RATE_LIMIT_WINDOW_MS,

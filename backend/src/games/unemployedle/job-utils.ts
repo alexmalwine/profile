@@ -2,6 +2,7 @@ import { createHash } from 'crypto';
 import { DEFAULT_RATING } from './constants';
 import { KNOWN_KEYWORDS } from './keywords';
 import type {
+  CompanySize,
   JobOpening,
   JobSearchJob,
   JobSearchResult,
@@ -116,6 +117,28 @@ export const normalizeMatchScore = (value: unknown) => {
 };
 
 const MAX_HINT_CHARS = 160;
+const COMPANY_SUFFIXES = new Set([
+  'inc',
+  'incorporated',
+  'llc',
+  'ltd',
+  'limited',
+  'corp',
+  'corporation',
+  'co',
+  'company',
+  'plc',
+  'gmbh',
+  'sarl',
+  'sa',
+  'ag',
+  'bv',
+  'oy',
+  'pte',
+  'pvt',
+  'lp',
+  'llp',
+]);
 
 const truncateHint = (value: string) =>
   value.length > MAX_HINT_CHARS ? value.slice(0, MAX_HINT_CHARS).trim() : value;
@@ -157,6 +180,60 @@ const buildFallbackHint = (title: string, keywords: string[]) => {
       : `This company is hiring for a ${trimmedTitle} role.`;
 
   return truncateHint(hint);
+};
+
+export const normalizeCompanyKey = (company: string) => {
+  const normalized = company
+    .toLowerCase()
+    .replace(/&/g, ' and ')
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim();
+  const tokens = normalized
+    .split(' ')
+    .filter(Boolean)
+    .filter((token) => !COMPANY_SUFFIXES.has(token));
+  return tokens.length > 0 ? tokens.join(' ') : normalized;
+};
+
+const normalizeCompanySize = (value: unknown): CompanySize => {
+  const normalized = String(value ?? '').toLowerCase();
+
+  if (
+    normalized.includes('startup') ||
+    normalized.includes('start-up') ||
+    normalized.includes('early') ||
+    normalized.includes('seed') ||
+    normalized.includes('series') ||
+    normalized.includes('venture') ||
+    normalized.includes('vc') ||
+    normalized.includes('bootstrapped') ||
+    normalized.includes('small')
+  ) {
+    return 'startup';
+  }
+
+  if (
+    normalized.includes('mid') ||
+    normalized.includes('medium') ||
+    normalized.includes('midsize') ||
+    normalized.includes('mid-size') ||
+    normalized.includes('scale')
+  ) {
+    return 'mid';
+  }
+
+  if (
+    normalized.includes('large') ||
+    normalized.includes('enterprise') ||
+    normalized.includes('public') ||
+    normalized.includes('fortune') ||
+    normalized.includes('faang') ||
+    normalized.includes('big')
+  ) {
+    return 'large';
+  }
+
+  return 'mid';
 };
 
 const filterKeywordsForHint = (keywords: string[], company: string) => {
@@ -439,7 +516,9 @@ export const normalizeJobResults = (jobs: JobSearchJob[]) => {
     const url = normalizeJobUrl(job, source, company, title, location);
     const matchScoreHint = normalizeMatchScore(job.matchScore) ?? undefined;
     const id = buildJobId(company, title, location, url);
-    const key = `${company.toLowerCase()}|${title.toLowerCase()}|${location.toLowerCase()}`;
+    const companyKey = normalizeCompanyKey(company);
+    const key = `${companyKey}|${title.toLowerCase()}|${location.toLowerCase()}`;
+    const companySize = normalizeCompanySize(job.companySize);
 
     if (seen.has(key)) {
       return;
@@ -457,6 +536,7 @@ export const normalizeJobResults = (jobs: JobSearchJob[]) => {
       url,
       matchScoreHint,
       companyHint,
+      companySize,
     });
   });
 

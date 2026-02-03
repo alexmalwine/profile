@@ -6,6 +6,8 @@ export type JobSource =
   | 'Indeed'
   | 'Other';
 
+export type CompanySize = 'large' | 'mid' | 'startup';
+
 export interface JobOpening {
   id: string;
   company: string;
@@ -17,6 +19,7 @@ export interface JobOpening {
   url: string;
   matchScoreHint?: number;
   companyHint?: string;
+  companySize?: CompanySize;
 }
 
 export interface RankedJob extends JobOpening {
@@ -90,6 +93,7 @@ export interface JobSearchJob {
   url?: string;
   matchScore?: number;
   companyHint?: string;
+  companySize?: string;
   rationale?: string;
 }
 

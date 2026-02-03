@@ -51,10 +51,14 @@ export class ChatGptJobSearchClient implements JobSearchClient {
             'searchQueries: 5-8 short queries (<=6 words each) that reflect ' +
             'the resume focus (for example marketing, finance, healthcare, ' +
             'operations, or design). ' +
-            'jobs: 12 openings aligned to the resume focus with company, ' +
+            'jobs: 15 openings aligned to the resume focus with company, ' +
             'title, location, source, rating (1-5), keywords (3-6 items), ' +
-            'companyUrl, sourceUrl, companyHint, matchScore (0-100), and rationale ' +
+            'companyUrl, sourceUrl, companyHint, companySize, matchScore (0-100), ' +
+            'and rationale ' +
             '(<=20 words). ' +
+            'Each job must be a unique company (no repeats). ' +
+            'companySize must be one of: large, mid, startup. Include a balanced ' +
+            'mix with 4-6 from each size if possible. ' +
             'companyUrl must be a direct job posting on the hiring company ' +
             'careers/ATS site (Workday, Greenhouse, Lever, SmartRecruiters, etc). ' +
             'If unavailable, set companyUrl to null. ' +
