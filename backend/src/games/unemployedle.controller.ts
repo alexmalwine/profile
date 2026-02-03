@@ -10,7 +10,7 @@ import {
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import type { Express } from 'express';
-import pdfParse from 'pdf-parse';
+import { PDFParse } from 'pdf-parse';
 import { UnemployedleService } from './unemployedle.service';
 import { UnemployedleRateLimitGuard } from './unemployedle/rate-limit.guard';
 import type {
@@ -22,10 +22,6 @@ import type {
 interface GuessRequest {
   gameId: string;
   letter: string;
-}
-
-interface PdfParseResult {
-  text: string;
 }
 
 @Controller('api/games/unemployedle')
@@ -82,14 +78,19 @@ export class UnemployedleController {
   private async extractResumeText(file: Express.Multer.File): Promise<string> {
     if (this.isPdfResume(file)) {
       try {
-        const parsed = (await pdfParse(file.buffer)) as PdfParseResult;
-        const normalized = this.normalizeResumeText(parsed.text ?? '');
-        if (normalized) {
-          return normalized;
+        const parser = new PDFParse({ data: file.buffer });
+        try {
+          const parsed = await parser.getText();
+          const normalized = this.normalizeResumeText(parsed.text ?? '');
+          if (normalized) {
+            return normalized;
+          }
+          this.logger.warn(
+            'PDF resume parsed but contained no text. Falling back to raw text.',
+          );
+        } finally {
+          await parser.destroy().catch(() => undefined);
         }
-        this.logger.warn(
-          'PDF resume parsed but contained no text. Falling back to raw text.',
-        );
       } catch (error) {
         const message =
           error instanceof Error ? error.message : 'Unknown error';

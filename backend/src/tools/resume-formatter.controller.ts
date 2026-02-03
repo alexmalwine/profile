@@ -8,7 +8,7 @@ import {
   UseInterceptors,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
-import type { Multer } from 'multer';
+import type { Express } from 'express';
 import { ResumeFormatterService } from './resume-formatter.service';
 import type { FormatResult } from './resume-formatter/types';
 
@@ -30,7 +30,7 @@ export class ResumeFormatterController {
     }),
   )
   formatResume(
-    @UploadedFile() file?: Multer.File,
+    @UploadedFile() file?: Express.Multer.File,
     @Body('formatId') formatId?: string,
   ): FormatResult {
     if (!file) {
