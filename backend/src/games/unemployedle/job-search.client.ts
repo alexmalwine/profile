@@ -60,7 +60,9 @@ export class ChatGptJobSearchClient implements JobSearchClient {
             'If unavailable, set companyUrl to null. ' +
             'sourceUrl must be a direct job posting on the third-party site ' +
             'named in source (LinkedIn /jobs/view, Indeed /viewjob, Glassdoor ' +
-            '/job-listing). If unavailable, set sourceUrl to null. ' +
+            '/job-listing). Include the job ID in the URL (LinkedIn job id in ' +
+            '/jobs/view/<id>, Indeed jk=..., Glassdoor jl=... or jobListingId=...). ' +
+            'If you cannot provide a job ID, set sourceUrl to null. ' +
             'Do not use search-result or Google URLs. ' +
             'Use real job boards in the source field. Keep values concise, ' +
             'avoid extra whitespace or Markdown, and return JSON only.\n\n' +

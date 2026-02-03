@@ -152,6 +152,7 @@ export const buildFallbackUrl = (
 };
 
 const JOB_BOARD_HOSTS = ['linkedin.com', 'glassdoor.com', 'indeed.com'];
+const MIN_JOB_ID_LENGTH = 6;
 
 const normalizeHostname = (host: string) =>
   host.toLowerCase().replace(/^www\./, '');
@@ -209,17 +210,25 @@ const isJobBoardDetailUrl = (url: URL) => {
   const path = url.pathname.toLowerCase();
 
   if (hostMatches(host, 'linkedin.com')) {
-    return path.startsWith('/jobs/view');
+    const match = path.match(/^\/jobs\/view\/(\d+)/);
+    return Boolean(match && match[1].length >= MIN_JOB_ID_LENGTH);
   }
   if (hostMatches(host, 'indeed.com')) {
+    const jobKey = url.searchParams.get('jk')?.trim();
     return (
-      path.startsWith('/viewjob') ||
-      path.startsWith('/rc/clk') ||
-      path.startsWith('/pagead/clk')
+      Boolean(jobKey && jobKey.length >= MIN_JOB_ID_LENGTH) &&
+      (path.startsWith('/viewjob') ||
+        path.startsWith('/rc/clk') ||
+        path.startsWith('/pagead/clk'))
     );
   }
   if (hostMatches(host, 'glassdoor.com')) {
-    return path.includes('/job-listing/');
+    const jobListingId =
+      url.searchParams.get('jl') ?? url.searchParams.get('jobListingId');
+    return (
+      path.includes('/job-listing/') &&
+      Boolean(jobListingId && jobListingId.trim().length >= MIN_JOB_ID_LENGTH)
+    );
   }
 
   return false;
