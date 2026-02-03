@@ -28,6 +28,7 @@ import {
   normalizeJobResults,
   normalizeMatchScore,
   sanitizeLetter,
+  toNonEmptyString,
 } from './unemployedle/job-utils';
 import {
   type CompanySize,

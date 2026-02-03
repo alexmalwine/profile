@@ -569,7 +569,8 @@ export class JobBoardSearchClient implements JobSearchClient {
     variants: Array<{ label: string; suffix?: string; location?: string }>,
     maxQueries: number,
   ) {
-    const expanded: Array<{ query: string; location?: string }> = [];
+    const expanded: Array<{ query: string; location?: string; label: string }> =
+      [];
 
     for (const baseQuery of baseQueries) {
       for (const variant of variants) {
@@ -581,7 +582,7 @@ export class JobBoardSearchClient implements JobSearchClient {
         const query = `${baseQuery}${suffix}${
           location && !suffix ? ` ${location}` : ''
         }`.trim();
-        expanded.push({ query, location });
+        expanded.push({ query, location, label: variant.label });
       }
       if (expanded.length >= maxQueries) {
         break;
