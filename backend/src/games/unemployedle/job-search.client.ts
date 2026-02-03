@@ -157,7 +157,7 @@ export class ChatGptJobSearchClient implements JobSearchClient {
             'searchQueries: 5-8 short queries (<=6 words each) that reflect ' +
             'the resume focus (for example marketing, finance, healthcare, ' +
             'operations, or design). ' +
-            'jobs: 12 openings aligned to the resume focus with company, ' +
+            'jobs: 8-12 openings aligned to the resume focus with company, ' +
             'title, location, source, rating (1-5), keywords (3-6 items), ' +
             'companyUrl, sourceUrl, companyHint, companySize, matchScore (0-100), ' +
             'and rationale ' +
@@ -175,6 +175,8 @@ export class ChatGptJobSearchClient implements JobSearchClient {
             '/job-listing). Include the job ID in the URL (LinkedIn job id in ' +
             '/jobs/view/<id>, Indeed jk=..., Glassdoor jl=... or jobListingId=...). ' +
             'If you cannot provide a job ID, set sourceUrl to null. ' +
+            'Do not fabricate URLs; if fewer than 12 real jobs are found, ' +
+            'return fewer jobs instead of guessing. ' +
             'companyHint must describe what the company does in <=15 words ' +
             'and must not include the company name. If unsure, set null. ' +
             'Do not use search-result or Google URLs. ' +

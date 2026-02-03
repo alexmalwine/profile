@@ -173,15 +173,8 @@ export class UnemployedleService {
 
   private async rankJobs(resumeText: string) {
     const resumeKeywords = extractResumeKeywords(resumeText);
-    const searchResult = await this.getSearchResult(resumeText);
-    const normalizedJobs = normalizeJobResults(searchResult.jobs ?? []);
-
-    if (normalizedJobs.length === 0) {
-      this.logger.warn('ChatGPT returned no usable job results.');
-      throw new ServiceUnavailableException('No job matches were returned.');
-    }
-
-    const verifiedJobs = await this.validateJobLinks(normalizedJobs);
+    const { verifiedJobs, searchResult } =
+      await this.gatherVerifiedJobs(resumeText);
 
     if (verifiedJobs.length === 0) {
       this.logger.warn('ChatGPT returned no verifiable job links.');
@@ -245,6 +238,57 @@ export class UnemployedleService {
     return game.job.companyHint;
   }
 
+  private async gatherVerifiedJobs(resumeText: string) {
+    const maxAttempts = 3;
+    const maxJobs = 20;
+    const collected: JobOpening[] = [];
+    const seen = new Set<string>();
+    let summaryResult: CachedJobSearch['result'] | null = null;
+
+    for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+      const searchResult =
+        attempt === 0
+          ? await this.getSearchResult(resumeText)
+          : await this.jobSearchClient.searchJobs(resumeText);
+
+      if (!summaryResult) {
+        summaryResult = searchResult;
+      }
+
+      const normalizedJobs = normalizeJobResults(searchResult.jobs ?? []);
+      if (normalizedJobs.length === 0) {
+        continue;
+      }
+
+      const uniqueCandidates = normalizedJobs.filter((job) => {
+        const key = `${normalizeCompanyKey(job.company)}|${job.title.toLowerCase()}|${job.location.toLowerCase()}`;
+        if (seen.has(key)) {
+          return false;
+        }
+        seen.add(key);
+        return true;
+      });
+
+      if (uniqueCandidates.length === 0) {
+        continue;
+      }
+
+      const verified = await this.validateJobLinks(
+        uniqueCandidates.slice(0, maxJobs),
+      );
+      collected.push(...verified);
+
+      if (collected.length >= 10) {
+        break;
+      }
+    }
+
+    return {
+      verifiedJobs: collected,
+      searchResult: summaryResult ?? { jobs: [] },
+    };
+  }
+
   private async validateJobLinks(jobs: JobOpening[]) {
     const verified = await Promise.all(
       jobs.map((job) => this.resolveVerifiedJob(job)),
@@ -259,8 +303,8 @@ export class UnemployedleService {
     const sourceUrl = job.sourceUrl ?? null;
 
     if (companyUrl) {
-      const status = await this.checkUrl(companyUrl);
-      if (status === 'valid' || status === 'unknown') {
+      const status = await this.checkUrl(companyUrl, job);
+      if (status === 'valid') {
         return {
           ...job,
           url: companyUrl,
@@ -270,8 +314,8 @@ export class UnemployedleService {
     }
 
     if (sourceUrl) {
-      const status = await this.checkUrl(sourceUrl);
-      if (status === 'valid' || status === 'unknown') {
+      const status = await this.checkUrl(sourceUrl, job);
+      if (status === 'valid') {
         return {
           ...job,
           url: sourceUrl,
@@ -283,9 +327,7 @@ export class UnemployedleService {
     return null;
   }
 
-  private async checkUrl(
-    url: string,
-  ): Promise<'valid' | 'invalid' | 'unknown'> {
+  private async checkUrl(url: string, job: JobOpening): Promise<'valid' | 'invalid'> {
     const controller = new AbortController();
     const timeoutId = setTimeout(
       () => controller.abort(),
@@ -309,34 +351,31 @@ export class UnemployedleService {
       if (response.status >= 500) {
         return 'invalid';
       }
-      if (
-        response.status === 401 ||
-        response.status === 403 ||
-        response.status === 429
-      ) {
-        return 'unknown';
-      }
-      if (response.status >= 300 && response.status < 400) {
-        return 'valid';
+      if (response.status === 401 || response.status === 403 || response.status === 429) {
+        return 'invalid';
       }
       if (response.status < 200 || response.status >= 400) {
         return 'invalid';
       }
 
       const contentType = response.headers.get('content-type')?.toLowerCase();
-      if (contentType && contentType.includes('text/html')) {
+      if (!contentType || contentType.includes('text') || contentType.includes('html')) {
         const text = await response.text();
         if (this.containsNotFoundMessage(text)) {
           return 'invalid';
         }
+        if (!this.matchesJobTitle(text, job.title)) {
+          return 'invalid';
+        }
+        return 'valid';
       }
 
-      return 'valid';
+      return 'invalid';
     } catch (error) {
       if (error instanceof Error && error.name === 'AbortError') {
-        return 'unknown';
+        return 'invalid';
       }
-      return 'unknown';
+      return 'invalid';
     } finally {
       clearTimeout(timeoutId);
     }
@@ -344,6 +383,28 @@ export class UnemployedleService {
 
   private containsNotFoundMessage(text: string) {
     return this.jobNotFoundPatterns.some((pattern) => pattern.test(text));
+  }
+
+  private matchesJobTitle(html: string, title: string) {
+    const text = html.slice(0, 200_000).toLowerCase();
+    const tokens = title
+      .toLowerCase()
+      .match(/[a-z0-9]+/g)
+      ?.filter((token) => token.length > 2) ?? [];
+
+    if (tokens.length === 0) {
+      return false;
+    }
+
+    let matches = 0;
+    tokens.forEach((token) => {
+      if (text.includes(token)) {
+        matches += 1;
+      }
+    });
+
+    const requiredMatches = Math.min(2, tokens.length);
+    return matches >= requiredMatches;
   }
 
   private applyCompanyDiversity(jobs: GameState['job'][]) {
