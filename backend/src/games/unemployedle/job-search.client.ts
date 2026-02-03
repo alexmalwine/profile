@@ -13,6 +13,112 @@ import {
 import { safeParseJson, toNonEmptyString, truncateText } from './job-utils';
 import type { JobSearchClient, JobSearchJob, JobSearchResult } from './types';
 
+const looksLikeJob = (value: unknown): value is JobSearchJob =>
+  Boolean(
+    value &&
+      typeof value === 'object' &&
+      ('company' in value ||
+        'title' in value ||
+        'location' in value ||
+        'source' in value),
+  );
+
+const findJobsArray = (value: unknown): JobSearchJob[] | null => {
+  if (!value || typeof value !== 'object') {
+    return null;
+  }
+  if (Array.isArray(value)) {
+    return value.some(looksLikeJob) ? (value as JobSearchJob[]) : null;
+  }
+
+  const withJobs = value as { jobs?: unknown };
+  if (Array.isArray(withJobs.jobs)) {
+    return withJobs.jobs as JobSearchJob[];
+  }
+  if (typeof withJobs.jobs === 'string') {
+    try {
+      const parsed = JSON.parse(withJobs.jobs);
+      if (Array.isArray(parsed) && parsed.some(looksLikeJob)) {
+        return parsed as JobSearchJob[];
+      }
+    } catch {
+      // ignore invalid json strings
+    }
+  }
+  if (withJobs.jobs && typeof withJobs.jobs === 'object') {
+    const values = Object.values(withJobs.jobs);
+    if (values.some(looksLikeJob)) {
+      return values as JobSearchJob[];
+    }
+  }
+
+  for (const candidate of Object.values(value)) {
+    if (Array.isArray(candidate) && candidate.some(looksLikeJob)) {
+      return candidate as JobSearchJob[];
+    }
+  }
+
+  return null;
+};
+
+const extractSearchResult = (parsed: unknown): JobSearchResult | null => {
+  if (!parsed || typeof parsed !== 'object') {
+    return null;
+  }
+
+  const parsedObj = parsed as Record<string, unknown>;
+  const data = parsedObj.data as Record<string, unknown> | undefined;
+  const result = parsedObj.result as Record<string, unknown> | undefined;
+  const results = parsedObj.results as Record<string, unknown> | undefined;
+  const jobResults = parsedObj.jobResults as Record<string, unknown> | undefined;
+  const openings = parsedObj.openings as Record<string, unknown> | undefined;
+
+  const nestedCandidates = [
+    parsedObj,
+    data,
+    result,
+    results,
+    jobResults,
+    openings,
+  ].filter(Boolean) as Record<string, unknown>[];
+
+  let jobs: JobSearchJob[] | null = null;
+  for (const candidate of nestedCandidates) {
+    jobs = findJobsArray(candidate);
+    if (jobs?.length) {
+      break;
+    }
+  }
+
+  if (!jobs || jobs.length === 0) {
+    return null;
+  }
+
+  const summary =
+    toNonEmptyString(parsedObj.summary) ??
+    toNonEmptyString(data?.summary) ??
+    toNonEmptyString(result?.summary) ??
+    toNonEmptyString(results?.summary) ??
+    '';
+
+  const searchQueries =
+    Array.isArray(parsedObj.searchQueries) && parsedObj.searchQueries.length > 0
+      ? parsedObj.searchQueries
+      : Array.isArray(data?.searchQueries)
+        ? data?.searchQueries
+        : Array.isArray(result?.searchQueries)
+          ? result?.searchQueries
+          : Array.isArray(results?.searchQueries)
+            ? results?.searchQueries
+            : [];
+
+  return {
+    summary,
+    searchQueries: searchQueries.map((query) => String(query).trim()),
+    jobs,
+  };
+};
+
 @Injectable()
 export class ChatGptJobSearchClient implements JobSearchClient {
   private readonly apiKey = process.env.OPENAI_API_KEY;
@@ -51,14 +157,15 @@ export class ChatGptJobSearchClient implements JobSearchClient {
             'searchQueries: 5-8 short queries (<=6 words each) that reflect ' +
             'the resume focus (for example marketing, finance, healthcare, ' +
             'operations, or design). ' +
-            'jobs: 15 openings aligned to the resume focus with company, ' +
+            'jobs: 12 openings aligned to the resume focus with company, ' +
             'title, location, source, rating (1-5), keywords (3-6 items), ' +
             'companyUrl, sourceUrl, companyHint, companySize, matchScore (0-100), ' +
             'and rationale ' +
             '(<=20 words). ' +
             'Each job must be a unique company (no repeats). ' +
-            'companySize must be one of: large, mid, startup. Include a balanced ' +
-            'mix with 4-6 from each size if possible. ' +
+            'companySize must be one of: large, mid, startup. Return 4 per size ' +
+            'if possible; if not, fill remaining slots with other sizes but keep ' +
+            'companies unique. ' +
             'companyUrl must be a direct job posting on the hiring company ' +
             'careers/ATS site (Workday, Greenhouse, Lever, SmartRecruiters, etc). ' +
             'If unavailable, set companyUrl to null. ' +
@@ -129,18 +236,19 @@ export class ChatGptJobSearchClient implements JobSearchClient {
 
     // Defensive parse in case the model wraps JSON.
     const parsed = safeParseJson(content);
-    if (!parsed || !Array.isArray(parsed.jobs)) {
+    const extracted = extractSearchResult(parsed);
+    if (!extracted) {
       throw new ServiceUnavailableException(
         'ChatGPT response was missing job results.',
       );
     }
 
     return {
-      summary: toNonEmptyString(parsed.summary) ?? '',
-      searchQueries: Array.isArray(parsed.searchQueries)
-        ? parsed.searchQueries.map((query: unknown) => String(query).trim())
+      summary: toNonEmptyString(extracted.summary) ?? '',
+      searchQueries: Array.isArray(extracted.searchQueries)
+        ? extracted.searchQueries.map((query: unknown) => String(query).trim())
         : [],
-      jobs: parsed.jobs as JobSearchJob[],
+      jobs: extracted.jobs,
     };
   }
 }

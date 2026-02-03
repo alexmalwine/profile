@@ -232,25 +232,31 @@ export class UnemployedleService {
       startup: 0,
     };
     const diversified: GameState['job'][] = [];
+    const maxResults = 10;
 
-    for (const job of jobs) {
+    const tryAdd = (job: GameState['job'], enforceSizeCaps: boolean) => {
+      if (diversified.length >= maxResults) {
+        return;
+      }
       const companyKey = normalizeCompanyKey(job.company);
       if (seenCompanies.has(companyKey)) {
-        continue;
+        return;
       }
 
       const size = job.companySize ?? 'mid';
-      if (sizeCounts[size] >= COMPANY_SIZE_LIMITS[size]) {
-        continue;
+      if (enforceSizeCaps && sizeCounts[size] >= COMPANY_SIZE_LIMITS[size]) {
+        return;
       }
 
       seenCompanies.add(companyKey);
       sizeCounts[size] += 1;
       diversified.push(job);
+    };
 
-      if (diversified.length >= 10) {
-        break;
-      }
+    jobs.forEach((job) => tryAdd(job, true));
+
+    if (diversified.length < maxResults) {
+      jobs.forEach((job) => tryAdd(job, false));
     }
 
     return diversified;
