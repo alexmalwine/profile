@@ -83,6 +83,8 @@ export interface JobSearchJob {
   source?: string;
   rating?: number;
   keywords?: string[] | string;
+  companyUrl?: string;
+  sourceUrl?: string;
   url?: string;
   matchScore?: number;
   rationale?: string;

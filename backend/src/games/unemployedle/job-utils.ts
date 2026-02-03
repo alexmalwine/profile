@@ -151,58 +151,152 @@ export const buildFallbackUrl = (
   }
 };
 
-const isSearchUrl = (value: string, source: JobSource) => {
-  try {
-    const url = new URL(value);
-    const host = url.hostname.toLowerCase();
-    const path = url.pathname.toLowerCase();
+const JOB_BOARD_HOSTS = ['linkedin.com', 'glassdoor.com', 'indeed.com'];
 
-    switch (source) {
-      case 'LinkedIn':
-        return (
-          host.endsWith('linkedin.com') &&
-          path.startsWith('/jobs/search') &&
-          url.searchParams.has('keywords')
-        );
-      case 'Glassdoor':
-        return (
-          host.endsWith('glassdoor.com') &&
-          path.includes('/job') &&
-          path.endsWith('jobs.htm') &&
-          url.searchParams.has('sc.keyword')
-        );
-      case 'Indeed':
-        return (
-          host.endsWith('indeed.com') &&
-          path.startsWith('/jobs') &&
-          url.searchParams.has('q')
-        );
-      case 'Company Careers':
-      case 'Fortune 500':
-      case 'Other':
-      default:
-        return false;
-    }
+const normalizeHostname = (host: string) =>
+  host.toLowerCase().replace(/^www\./, '');
+
+const hostMatches = (host: string, domain: string) =>
+  host === domain || host.endsWith(`.${domain}`);
+
+const isJobBoardHost = (host: string) => {
+  const normalized = normalizeHostname(host);
+  return JOB_BOARD_HOSTS.some((domain) => hostMatches(normalized, domain));
+};
+
+const normalizeHttpUrl = (value: unknown) => {
+  if (typeof value !== 'string') {
+    return null;
+  }
+  const trimmed = value.trim();
+  if (!/^https?:\/\//i.test(trimmed)) {
+    return null;
+  }
+  try {
+    const url = new URL(trimmed);
+    return url.toString();
   } catch {
-    return false;
+    return null;
   }
 };
 
-export const normalizeUrl = (
-  value: unknown,
+const isJobBoardSearchUrl = (url: URL) => {
+  const host = normalizeHostname(url.hostname);
+  const path = url.pathname.toLowerCase();
+
+  if (hostMatches(host, 'linkedin.com')) {
+    return path.startsWith('/jobs/search') && url.searchParams.has('keywords');
+  }
+  if (hostMatches(host, 'glassdoor.com')) {
+    return (
+      path.includes('/job') &&
+      path.endsWith('jobs.htm') &&
+      url.searchParams.has('sc.keyword')
+    );
+  }
+  if (hostMatches(host, 'indeed.com')) {
+    return path.startsWith('/jobs') && url.searchParams.has('q');
+  }
+  if (hostMatches(host, 'google.com')) {
+    return path.startsWith('/search') && url.searchParams.has('q');
+  }
+
+  return false;
+};
+
+const isJobBoardDetailUrl = (url: URL) => {
+  const host = normalizeHostname(url.hostname);
+  const path = url.pathname.toLowerCase();
+
+  if (hostMatches(host, 'linkedin.com')) {
+    return path.startsWith('/jobs/view');
+  }
+  if (hostMatches(host, 'indeed.com')) {
+    return (
+      path.startsWith('/viewjob') ||
+      path.startsWith('/rc/clk') ||
+      path.startsWith('/pagead/clk')
+    );
+  }
+  if (hostMatches(host, 'glassdoor.com')) {
+    return path.includes('/job-listing/');
+  }
+
+  return false;
+};
+
+const normalizeCompanyUrl = (value: unknown) => {
+  const normalized = normalizeHttpUrl(value);
+  if (!normalized) {
+    return null;
+  }
+
+  try {
+    const url = new URL(normalized);
+    if (isJobBoardHost(url.hostname)) {
+      return null;
+    }
+    const host = normalizeHostname(url.hostname);
+    if (hostMatches(host, 'google.com')) {
+      if (url.pathname.toLowerCase().startsWith('/search')) {
+        return null;
+      }
+    }
+  } catch {
+    return null;
+  }
+
+  return normalized;
+};
+
+const normalizeSourceUrl = (value: unknown) => {
+  const normalized = normalizeHttpUrl(value);
+  if (!normalized) {
+    return null;
+  }
+
+  try {
+    const url = new URL(normalized);
+    if (!isJobBoardHost(url.hostname)) {
+      return null;
+    }
+    if (isJobBoardSearchUrl(url)) {
+      return null;
+    }
+    return isJobBoardDetailUrl(url) ? normalized : null;
+  } catch {
+    return null;
+  }
+};
+
+export const normalizeJobUrl = (
+  job: JobSearchJob,
   source: JobSource,
   company: string,
   title: string,
   location: string,
 ) => {
-  if (typeof value === 'string') {
-    const trimmed = value.trim();
-    if (isSearchUrl(trimmed, source)) {
-      return trimmed;
+  let companyUrl = normalizeCompanyUrl(job.companyUrl);
+  let sourceUrl = normalizeSourceUrl(job.sourceUrl);
+
+  const legacyUrl = normalizeHttpUrl(job.url);
+  if (legacyUrl) {
+    try {
+      const host = new URL(legacyUrl).hostname;
+      if (!companyUrl && !isJobBoardHost(host)) {
+        companyUrl = normalizeCompanyUrl(legacyUrl);
+      }
+      if (!sourceUrl && isJobBoardHost(host)) {
+        sourceUrl = normalizeSourceUrl(legacyUrl);
+      }
+    } catch {
+      // ignore invalid legacy urls
     }
   }
 
-  return buildFallbackUrl(source, company, title, location);
+  return (
+    companyUrl ?? sourceUrl ?? buildFallbackUrl(source, company, title, location)
+  );
 };
 
 export const safeParseJson = (text: string) => {
@@ -266,7 +360,7 @@ export const normalizeJobResults = (jobs: JobSearchJob[]) => {
       providedKeywords.length > 0
         ? providedKeywords
         : extractKeywordsFromText(`${title} ${company} ${location}`);
-    const url = normalizeUrl(job.url, source, company, title, location);
+    const url = normalizeJobUrl(job, source, company, title, location);
     const matchScoreHint = normalizeMatchScore(job.matchScore) ?? undefined;
     const id = buildJobId(company, title, location, url);
     const key = `${company.toLowerCase()}|${title.toLowerCase()}|${location.toLowerCase()}`;
