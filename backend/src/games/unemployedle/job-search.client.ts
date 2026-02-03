@@ -168,7 +168,8 @@ export class ChatGptJobSearchClient implements JobSearchClient {
             'companies unique. ' +
             'companyUrl must be a direct job posting on the hiring company ' +
             'careers/ATS site (Workday, Greenhouse, Lever, SmartRecruiters, etc). ' +
-            'If unavailable, set companyUrl to null. ' +
+            'Only include openings you are confident are live right now; if ' +
+            'unsure, omit the job. If unavailable, set companyUrl to null. ' +
             'sourceUrl must be a direct job posting on the third-party site ' +
             'named in source (LinkedIn /jobs/view, Indeed /viewjob, Glassdoor ' +
             '/job-listing). Include the job ID in the URL (LinkedIn job id in ' +

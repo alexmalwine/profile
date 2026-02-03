@@ -14,6 +14,7 @@ import {
 } from './unemployedle/constants';
 import { ChatGptJobSearchClient } from './unemployedle/job-search.client';
 import {
+  buildJobId,
   buildSelectionSummary,
   clampNumber,
   computeMatchScore,
@@ -28,6 +29,7 @@ import {
   type CachedJobSearch,
   type GameState,
   type GuessResponse,
+  type JobOpening,
   type StartResponse,
   type TopJobsResponse,
   type JobSearchClient,
@@ -38,6 +40,18 @@ export class UnemployedleService {
   private readonly games = new Map<string, GameState>();
   private readonly searchCache = new Map<string, CachedJobSearch>();
   private readonly logger = new Logger(UnemployedleService.name);
+  private readonly jobUrlTimeoutMs = 4000;
+  private readonly jobUrlUserAgent =
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 ' +
+    '(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
+  private readonly jobNotFoundPatterns = [
+    /job not found/i,
+    /no longer available/i,
+    /position (has been|is) (filled|closed)/i,
+    /job (has )?expired/i,
+    /this job (has )?expired/i,
+    /role (has )?been closed/i,
+  ];
 
   constructor(private readonly jobSearchClient: ChatGptJobSearchClient) {}
 
@@ -167,7 +181,14 @@ export class UnemployedleService {
       throw new ServiceUnavailableException('No job matches were returned.');
     }
 
-    const rankedJobs = normalizedJobs
+    const verifiedJobs = await this.validateJobLinks(normalizedJobs);
+
+    if (verifiedJobs.length === 0) {
+      this.logger.warn('ChatGPT returned no verifiable job links.');
+      throw new ServiceUnavailableException('No verified job matches found.');
+    }
+
+    const rankedJobs = verifiedJobs
       .map((job) => {
         const matchScore =
           typeof job.matchScoreHint === 'number'
@@ -222,6 +243,107 @@ export class UnemployedleService {
       return undefined;
     }
     return game.job.companyHint;
+  }
+
+  private async validateJobLinks(jobs: JobOpening[]) {
+    const verified = await Promise.all(
+      jobs.map((job) => this.resolveVerifiedJob(job)),
+    );
+    return verified.filter((job): job is JobOpening => Boolean(job));
+  }
+
+  private async resolveVerifiedJob(
+    job: JobOpening,
+  ): Promise<JobOpening | null> {
+    const companyUrl = job.companyUrl ?? null;
+    const sourceUrl = job.sourceUrl ?? null;
+
+    if (companyUrl) {
+      const status = await this.checkUrl(companyUrl);
+      if (status === 'valid' || status === 'unknown') {
+        return {
+          ...job,
+          url: companyUrl,
+          id: buildJobId(job.company, job.title, job.location, companyUrl),
+        };
+      }
+    }
+
+    if (sourceUrl) {
+      const status = await this.checkUrl(sourceUrl);
+      if (status === 'valid' || status === 'unknown') {
+        return {
+          ...job,
+          url: sourceUrl,
+          id: buildJobId(job.company, job.title, job.location, sourceUrl),
+        };
+      }
+    }
+
+    return null;
+  }
+
+  private async checkUrl(
+    url: string,
+  ): Promise<'valid' | 'invalid' | 'unknown'> {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(
+      () => controller.abort(),
+      this.jobUrlTimeoutMs,
+    );
+
+    try {
+      const response = await fetch(url, {
+        method: 'GET',
+        redirect: 'follow',
+        signal: controller.signal,
+        headers: {
+          'User-Agent': this.jobUrlUserAgent,
+          Accept: 'text/html,application/xhtml+xml',
+        },
+      });
+
+      if (response.status === 404 || response.status === 410) {
+        return 'invalid';
+      }
+      if (response.status >= 500) {
+        return 'invalid';
+      }
+      if (
+        response.status === 401 ||
+        response.status === 403 ||
+        response.status === 429
+      ) {
+        return 'unknown';
+      }
+      if (response.status >= 300 && response.status < 400) {
+        return 'valid';
+      }
+      if (response.status < 200 || response.status >= 400) {
+        return 'invalid';
+      }
+
+      const contentType = response.headers.get('content-type')?.toLowerCase();
+      if (contentType && contentType.includes('text/html')) {
+        const text = await response.text();
+        if (this.containsNotFoundMessage(text)) {
+          return 'invalid';
+        }
+      }
+
+      return 'valid';
+    } catch (error) {
+      if (error instanceof Error && error.name === 'AbortError') {
+        return 'unknown';
+      }
+      return 'unknown';
+    } finally {
+      clearTimeout(timeoutId);
+    }
+  }
+
+  private containsNotFoundMessage(text: string) {
+    return this.jobNotFoundPatterns.some((pattern) => pattern.test(text));
   }
 
   private applyCompanyDiversity(jobs: GameState['job'][]) {

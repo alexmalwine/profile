@@ -418,7 +418,7 @@ const normalizeSourceUrl = (value: unknown) => {
   }
 };
 
-export const normalizeJobUrl = (
+export const resolveJobUrls = (
   job: JobSearchJob,
   source: JobSource,
   company: string,
@@ -443,9 +443,10 @@ export const normalizeJobUrl = (
     }
   }
 
-  return (
-    companyUrl ?? sourceUrl ?? buildFallbackUrl(source, company, title, location)
-  );
+  const fallbackUrl = buildFallbackUrl(source, company, title, location);
+  const url = companyUrl ?? sourceUrl ?? fallbackUrl;
+
+  return { companyUrl, sourceUrl, fallbackUrl, url };
 };
 
 export const safeParseJson = (text: string) => {
@@ -513,7 +514,13 @@ export const normalizeJobResults = (jobs: JobSearchJob[]) => {
     const companyHint =
       normalizeCompanyHint(job.companyHint, company) ??
       buildFallbackHint(title, hintKeywords);
-    const url = normalizeJobUrl(job, source, company, title, location);
+    const { companyUrl, sourceUrl, url } = resolveJobUrls(
+      job,
+      source,
+      company,
+      title,
+      location,
+    );
     const matchScoreHint = normalizeMatchScore(job.matchScore) ?? undefined;
     const id = buildJobId(company, title, location, url);
     const companyKey = normalizeCompanyKey(company);
@@ -537,6 +544,8 @@ export const normalizeJobResults = (jobs: JobSearchJob[]) => {
       matchScoreHint,
       companyHint,
       companySize,
+      companyUrl,
+      sourceUrl,
     });
   });
 

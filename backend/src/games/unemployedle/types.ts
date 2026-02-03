@@ -20,6 +20,8 @@ export interface JobOpening {
   matchScoreHint?: number;
   companyHint?: string;
   companySize?: CompanySize;
+  companyUrl?: string | null;
+  sourceUrl?: string | null;
 }
 
 export interface RankedJob extends JobOpening {
