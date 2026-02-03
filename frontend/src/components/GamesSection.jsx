@@ -22,6 +22,8 @@ const GamesSection = ({ apiStatus, apiStatusLabel }) => {
     jobsError,
     isListing,
     topJobsSummary,
+    locationPreferences,
+    setLocationPreferences,
     handleResumeChange,
     handleStartGame,
     handleFetchTopJobs,
@@ -129,6 +131,62 @@ const GamesSection = ({ apiStatus, apiStatusLabel }) => {
                     Selected file: <strong>{resumeFile.name}</strong>
                   </p>
                 )}
+                <div className="form-group">
+                  <p className="label">Job location filters</p>
+                  <label className="checkbox">
+                    <input
+                      type="checkbox"
+                      checked={locationPreferences.includeRemote}
+                      onChange={(event) =>
+                        setLocationPreferences((previous) => ({
+                          ...previous,
+                          includeRemote: event.target.checked,
+                        }))
+                      }
+                    />
+                    <span>Remote</span>
+                  </label>
+                  <label className="checkbox">
+                    <input
+                      type="checkbox"
+                      checked={locationPreferences.includeLocal}
+                      onChange={(event) =>
+                        setLocationPreferences((previous) => ({
+                          ...previous,
+                          includeLocal: event.target.checked,
+                        }))
+                      }
+                    />
+                    <span>Local (near resume location)</span>
+                  </label>
+                  <label className="checkbox">
+                    <input
+                      type="checkbox"
+                      checked={locationPreferences.includeSpecific}
+                      onChange={(event) =>
+                        setLocationPreferences((previous) => ({
+                          ...previous,
+                          includeSpecific: event.target.checked,
+                        }))
+                      }
+                    />
+                    <span>Specific location</span>
+                  </label>
+                  {locationPreferences.includeSpecific && (
+                    <input
+                      type="text"
+                      className="text-input"
+                      placeholder="City, State or Country"
+                      value={locationPreferences.specificLocation}
+                      onChange={(event) =>
+                        setLocationPreferences((previous) => ({
+                          ...previous,
+                          specificLocation: event.target.value,
+                        }))
+                      }
+                    />
+                  )}
+                </div>
                 {startError && <p className="status-line error">{startError}</p>}
                 <div className="game-actions">
                   <button
@@ -236,6 +294,11 @@ const GamesSection = ({ apiStatus, apiStatusLabel }) => {
                     </span>
                   </div>
                 </div>
+                {gameState?.hint && (
+                  <p className="note">
+                    Hint: {gameState.hint}
+                  </p>
+                )}
 
                 <div className="letters-grid" aria-label="Guess a letter">
                   {LETTERS.map((letter) => {

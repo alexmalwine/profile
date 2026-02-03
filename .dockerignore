@@ -1,0 +1,12 @@
+.git
+.gitignore
+.DS_Store
+node_modules
+**/node_modules
+**/dist
+**/coverage
+frontend/dist
+backend/dist
+npm-debug.log
+yarn.lock
+pnpm-lock.yaml

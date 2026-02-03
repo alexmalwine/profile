@@ -23,6 +23,16 @@ npm run dev
 
 The frontend dev server proxies `/api` requests to `http://localhost:3000`.
 
+## Docker
+Build and run the full stack (frontend assets served by NestJS):
+```bash
+docker build -t profile-app .
+docker run --rm -p 3000:3000 \
+  -e OPENAI_API_KEY=your_key \
+  -e SERPAPI_API_KEY=your_key \
+  profile-app
+```
+
 ## Customizing content
 - Update placeholder text in `frontend/src/App.jsx`.
 - Edit metadata in `frontend/index.html`.
@@ -36,6 +46,10 @@ The frontend dev server proxies `/api` requests to `http://localhost:3000`.
 - `POST /api/games/unemployedle/guess` accepts `{ gameId, letter }`.
 - `GET /api/tools/resume-formatter/formats` returns available formats.
 - `POST /api/tools/resume-formatter/format` formats a resume upload.
+
+### Required environment variables
+- `OPENAI_API_KEY`: used to rank verified job results.
+- `SERPAPI_API_KEY`: used to search job boards and company career sites.
 
 ## Games
 The Unemployedle game lets a user upload a resume and play a hangman-style round

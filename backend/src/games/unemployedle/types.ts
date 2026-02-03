@@ -6,6 +6,8 @@ export type JobSource =
   | 'Indeed'
   | 'Other';
 
+export type CompanySize = 'large' | 'mid' | 'startup';
+
 export interface JobOpening {
   id: string;
   company: string;
@@ -16,6 +18,10 @@ export interface JobOpening {
   keywords: string[];
   url: string;
   matchScoreHint?: number;
+  companyHint?: string;
+  companySize?: CompanySize;
+  companyUrl?: string | null;
+  sourceUrl?: string | null;
 }
 
 export interface RankedJob extends JobOpening {
@@ -43,6 +49,7 @@ export interface StartResponse {
   maxGuesses: number;
   status: 'in_progress' | 'won' | 'lost';
   selectionSummary: string;
+  hint?: string;
   job: {
     title: string;
     location: string;
@@ -83,8 +90,12 @@ export interface JobSearchJob {
   source?: string;
   rating?: number;
   keywords?: string[] | string;
+  companyUrl?: string;
+  sourceUrl?: string;
   url?: string;
   matchScore?: number;
+  companyHint?: string;
+  companySize?: string;
   rationale?: string;
 }
 
@@ -95,7 +106,29 @@ export interface JobSearchResult {
 }
 
 export interface JobSearchClient {
-  searchJobs(resumeText: string): Promise<JobSearchResult>;
+  searchJobs(
+    resumeText: string,
+    options?: JobSearchOptions,
+  ): Promise<JobSearchResult>;
+}
+
+export interface JobRanking {
+  id: string;
+  matchScore?: number;
+  companySize?: CompanySize;
+  companyHint?: string;
+  rationale?: string;
+}
+
+export interface JobRanker {
+  rankJobs(resumeText: string, jobs: JobOpening[]): Promise<JobRanking[]>;
+}
+
+export interface JobSearchOptions {
+  includeRemote?: boolean;
+  includeLocal?: boolean;
+  specificLocation?: string | null;
+  localLocation?: string | null;
 }
 
 export interface CachedJobSearch {

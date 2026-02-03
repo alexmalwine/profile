@@ -15,6 +15,7 @@ import { UnemployedleService } from './unemployedle.service';
 import { UnemployedleRateLimitGuard } from './unemployedle/rate-limit.guard';
 import type {
   GuessResponse,
+  JobSearchOptions,
   StartResponse,
   TopJobsResponse,
 } from './unemployedle/types';
@@ -22,6 +23,14 @@ import type {
 interface GuessRequest {
   gameId: string;
   letter: string;
+}
+
+interface JobSearchOptionsRequest {
+  includeRemote?: string;
+  includeLocal?: string;
+  includeSpecific?: string;
+  specificLocation?: string;
+  localLocation?: string;
 }
 
 @Controller('api/games/unemployedle')
@@ -39,13 +48,17 @@ export class UnemployedleController {
   )
   async startGame(
     @UploadedFile() file?: Express.Multer.File,
+    @Body() body?: JobSearchOptionsRequest,
   ): Promise<StartResponse> {
     if (!file) {
       throw new BadRequestException('Resume file is required.');
     }
 
     const resumeText = await this.extractResumeText(file);
-    return this.unemployedleService.startGame(resumeText);
+    return this.unemployedleService.startGame(
+      resumeText,
+      this.parseJobSearchOptions(body),
+    );
   }
 
   @Post('jobs')
@@ -57,13 +70,17 @@ export class UnemployedleController {
   )
   async getTopJobs(
     @UploadedFile() file?: Express.Multer.File,
+    @Body() body?: JobSearchOptionsRequest,
   ): Promise<TopJobsResponse> {
     if (!file) {
       throw new BadRequestException('Resume file is required.');
     }
 
     const resumeText = await this.extractResumeText(file);
-    return this.unemployedleService.getTopJobs(resumeText);
+    return this.unemployedleService.getTopJobs(
+      resumeText,
+      this.parseJobSearchOptions(body),
+    );
   }
 
   @Post('guess')
@@ -132,5 +149,36 @@ export class UnemployedleController {
       .replace(/\n{3,}/g, '\n\n');
 
     return collapsedWhitespace.trim();
+  }
+
+  private parseJobSearchOptions(
+    body?: JobSearchOptionsRequest,
+  ): JobSearchOptions {
+    if (!body) {
+      return {};
+    }
+
+    const includeRemote = this.parseBoolean(body.includeRemote);
+    const includeLocal = this.parseBoolean(body.includeLocal);
+    const includeSpecific = this.parseBoolean(body.includeSpecific);
+    const specificLocation =
+      includeSpecific || body.specificLocation?.trim()
+        ? body.specificLocation?.trim()
+        : null;
+    const localLocation = body.localLocation?.trim();
+
+    return {
+      includeRemote,
+      includeLocal,
+      specificLocation,
+      localLocation: localLocation || null,
+    };
+  }
+
+  private parseBoolean(value?: string) {
+    if (!value) {
+      return false;
+    }
+    return value === 'true' || value === '1' || value === 'on';
   }
 }

@@ -124,9 +124,15 @@ describe('UnemployedleService', () => {
   };
 
   beforeEach(() => {
-    service = new UnemployedleService({
-      searchJobs: async () => stubSearchResult,
-    } as any);
+    service = new UnemployedleService(
+      {
+        searchJobs: async (_resume: string, _options?: any) => stubSearchResult,
+      } as any,
+      {
+        rankJobs: async () => [],
+      } as any,
+    );
+    (service as any).validateJobLinks = async (jobs: any[]) => jobs;
   });
 
   const getGame = (gameId: string) => (service as any).games.get(gameId);
