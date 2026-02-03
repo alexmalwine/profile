@@ -383,21 +383,43 @@ export class UnemployedleService {
           return 'invalid';
         }
 
-        const jobPostingTitles = this.extractJobPostingTitles(truncated);
-        if (jobPostingTitles.length > 0) {
-          const matchesSchemaTitle = jobPostingTitles.some((title) =>
-            this.matchesJobTitleText(title, job.title),
-          );
+        const jobPostingMetadata = this.extractJobPostingMetadata(truncated);
+        if (jobPostingMetadata.length > 0) {
+          const matchesSchemaTitle = jobPostingMetadata.some((entry) => {
+            if (!this.matchesJobTitleText(entry.title, job.title)) {
+              return false;
+            }
+            if (
+              entry.orgName &&
+              !this.matchesCompanyName(entry.orgName, job.company)
+            ) {
+              return false;
+            }
+            if (
+              entry.url &&
+              !this.urlsLikelyMatchJob(url, entry.url, entry.identifiers)
+            ) {
+              return false;
+            }
+            return true;
+          });
           return matchesSchemaTitle ? 'valid' : 'invalid';
         }
 
-        if (!this.containsJobPostingSchema(truncated)) {
-          return 'invalid';
+        const hasSchema = this.containsJobPostingSchema(truncated);
+        const matchesTitle = this.matchesJobTitleText(truncated, job.title);
+        const matchesCompany = this.matchesCompanyName(truncated, job.company);
+        const hasIndicators = this.containsJobPageIndicators(truncated, url);
+
+        if (hasSchema && matchesTitle && matchesCompany) {
+          return 'valid';
         }
 
-        return this.matchesJobTitleText(truncated, job.title)
-          ? 'valid'
-          : 'invalid';
+        if (matchesTitle && matchesCompany && hasIndicators) {
+          return 'valid';
+        }
+
+        return 'invalid';
       }
 
       return 'invalid';
@@ -441,8 +463,102 @@ export class UnemployedleService {
     return /schema\.org\/JobPosting/i.test(html);
   }
 
-  private extractJobPostingTitles(html: string) {
-    const titles: string[] = [];
+  private containsJobPageIndicators(html: string, url: string) {
+    const lower = html.toLowerCase();
+    const urlLower = url.toLowerCase();
+    const indicators = [
+      'job description',
+      'responsibilities',
+      'requirements',
+      'qualifications',
+      'apply now',
+      'job summary',
+      'job details',
+      'role overview',
+      'employment type',
+      'location',
+      'experience',
+    ];
+    const atsHosts = [
+      'greenhouse.io',
+      'boards.greenhouse.io',
+      'jobs.lever.co',
+      'lever.co',
+      'myworkdayjobs.com',
+      'workday',
+      'smartrecruiters.com',
+      'icims.com',
+      'jobvite.com',
+      'ashbyhq.com',
+      'recruitee.com',
+      'bamboohr.com',
+      'paylocity.com',
+      'taleo.net',
+      'successfactors.com',
+      'oraclecloud.com',
+    ];
+
+    if (atsHosts.some((host) => urlLower.includes(host))) {
+      return true;
+    }
+
+    return indicators.some((indicator) => lower.includes(indicator));
+  }
+
+  private matchesCompanyName(text: string, company: string) {
+    const companyKey = normalizeCompanyKey(company);
+    if (!companyKey) {
+      return false;
+    }
+    const tokens = companyKey.split(' ').filter((token) => token.length > 2);
+    if (tokens.length === 0) {
+      return false;
+    }
+
+    const normalized = text.toLowerCase();
+    return tokens.some((token) => normalized.includes(token));
+  }
+
+  private urlsLikelyMatchJob(
+    currentUrl: string,
+    candidateUrl: string,
+    identifiers: string[],
+  ) {
+    try {
+      const current = new URL(currentUrl);
+      const candidate = new URL(candidateUrl);
+      if (current.hostname === candidate.hostname) {
+        if (
+          current.pathname.includes(candidate.pathname) ||
+          candidate.pathname.includes(current.pathname)
+        ) {
+          return true;
+        }
+      }
+
+      const currentId = currentUrl.match(/[0-9]{4,}/g)?.pop();
+      const candidateId = candidateUrl.match(/[0-9]{4,}/g)?.pop();
+      if (currentId && candidateId && currentId === candidateId) {
+        return true;
+      }
+
+      if (currentId && identifiers.some((id) => id.includes(currentId))) {
+        return true;
+      }
+    } catch {
+      return false;
+    }
+
+    return false;
+  }
+
+  private extractJobPostingMetadata(html: string) {
+    const results: Array<{
+      title: string;
+      url?: string;
+      orgName?: string;
+      identifiers: string[];
+    }> = [];
     const scriptRegex =
       /<script[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi;
     let match: RegExpExecArray | null;
@@ -454,21 +570,29 @@ export class UnemployedleService {
       }
       try {
         const parsed = JSON.parse(raw);
-        this.collectJobPostingTitles(parsed, titles);
+        this.collectJobPostingMetadata(parsed, results);
       } catch {
         // ignore invalid json-ld blocks
       }
     }
 
-    return titles.filter(Boolean);
+    return results.filter((entry) => Boolean(entry.title));
   }
 
-  private collectJobPostingTitles(value: unknown, titles: string[]) {
+  private collectJobPostingMetadata(
+    value: unknown,
+    results: Array<{
+      title: string;
+      url?: string;
+      orgName?: string;
+      identifiers: string[];
+    }>,
+  ) {
     if (!value) {
       return;
     }
     if (Array.isArray(value)) {
-      value.forEach((entry) => this.collectJobPostingTitles(entry, titles));
+      value.forEach((entry) => this.collectJobPostingMetadata(entry, results));
       return;
     }
     if (typeof value !== 'object') {
@@ -480,7 +604,7 @@ export class UnemployedleService {
     const graph = record['@graph'];
 
     if (graph) {
-      this.collectJobPostingTitles(graph, titles);
+      this.collectJobPostingMetadata(graph, results);
     }
 
     const types = Array.isArray(type) ? type : [type];
@@ -498,13 +622,48 @@ export class UnemployedleService {
             ? record.name
             : null;
       if (title) {
-        titles.push(title);
+        const org = record.hiringOrganization as
+          | Record<string, unknown>
+          | string
+          | undefined;
+        const orgName =
+          typeof org === 'string'
+            ? org
+            : typeof org?.name === 'string'
+              ? org.name
+              : undefined;
+        const identifiers: string[] = [];
+        const rawId = record.identifier;
+        if (typeof rawId === 'string') {
+          identifiers.push(rawId);
+        } else if (rawId && typeof rawId === 'object') {
+          const idRecord = rawId as Record<string, unknown>;
+          if (typeof idRecord.value === 'string') {
+            identifiers.push(idRecord.value);
+          }
+        }
+        const url =
+          typeof record.url === 'string'
+            ? record.url
+            : typeof record['@id'] === 'string'
+              ? (record['@id'] as string)
+              : undefined;
+        if (typeof record.id === 'string') {
+          identifiers.push(record.id);
+        }
+
+        results.push({
+          title,
+          url,
+          orgName,
+          identifiers,
+        });
       }
     }
 
     Object.values(record).forEach((entry) => {
       if (typeof entry === 'object') {
-        this.collectJobPostingTitles(entry, titles);
+        this.collectJobPostingMetadata(entry, results);
       }
     });
   }
