@@ -41,15 +41,25 @@ const GamesSection = ({ apiStatus, apiStatusLabel }) => {
     handleFormatResume,
     handleDownloadFormatted,
   } = useResumeFormatter()
+  const isGenerating = isStarting || isListing
+  const generationLabel = isStarting
+    ? 'Generating your game'
+    : isListing
+      ? 'Generating your top jobs'
+      : ''
   const isGameActive = gameState?.status === 'in_progress'
-  const gameStatusLabel =
-    gameState?.status === 'won'
+  const gameStatusLabel = isGenerating
+    ? 'Generating'
+    : gameState?.status === 'won'
       ? 'You won'
       : gameState?.status === 'lost'
         ? 'Game over'
         : isGameActive
           ? 'In progress'
           : 'Ready'
+  const gameStatusClass = isGenerating
+    ? 'loading'
+    : gameState?.status ?? 'ready'
   const formatterStatusLabel = formatResult ? 'Formatted' : 'Ready'
   const formatterStatusClass = formatResult ? 'formatted' : 'ready'
   const selectedFormatMeta = RESUME_FORMATS.find(
@@ -95,7 +105,7 @@ const GamesSection = ({ apiStatus, apiStatusLabel }) => {
 
         <div className="games-grid">
           <div
-            className="game-card"
+            className={`game-card${isGenerating ? ' is-loading' : ''}`}
             role="tabpanel"
             id="unemployedle-panel"
             aria-labelledby="unemployedle-tab"
@@ -110,11 +120,24 @@ const GamesSection = ({ apiStatus, apiStatusLabel }) => {
                 </p>
               </div>
               <span
-                className={`status-badge ${gameState?.status ?? 'ready'}`}
+                className={`status-badge ${gameStatusClass}`}
               >
                 {gameStatusLabel}
               </span>
             </div>
+
+            {isGenerating && (
+              <div className="loading-banner" role="status" aria-live="polite">
+                <span className="loading-spinner" aria-hidden="true" />
+                <div>
+                  <p className="loading-title">{generationLabel}</p>
+                  <p className="loading-subtitle">
+                    This can take a bit. We are searching live job boards and
+                    ranking matches.
+                  </p>
+                </div>
+              </div>
+            )}
 
             <div className="game-grid">
               <div className="game-panel">
@@ -124,6 +147,7 @@ const GamesSection = ({ apiStatus, apiStatusLabel }) => {
                     type="file"
                     accept=".pdf,.doc,.docx,.txt"
                     onChange={handleResumeChange}
+                    disabled={isGenerating}
                   />
                 </label>
                 {resumeFile && (
@@ -137,6 +161,7 @@ const GamesSection = ({ apiStatus, apiStatusLabel }) => {
                     <input
                       type="checkbox"
                       checked={locationPreferences.includeRemote}
+                      disabled={isGenerating}
                       onChange={(event) =>
                         setLocationPreferences((previous) => ({
                           ...previous,
@@ -150,6 +175,7 @@ const GamesSection = ({ apiStatus, apiStatusLabel }) => {
                     <input
                       type="checkbox"
                       checked={locationPreferences.includeLocal}
+                      disabled={isGenerating}
                       onChange={(event) =>
                         setLocationPreferences((previous) => ({
                           ...previous,
@@ -163,6 +189,7 @@ const GamesSection = ({ apiStatus, apiStatusLabel }) => {
                     <input
                       type="checkbox"
                       checked={locationPreferences.includeSpecific}
+                      disabled={isGenerating}
                       onChange={(event) =>
                         setLocationPreferences((previous) => ({
                           ...previous,
@@ -178,6 +205,7 @@ const GamesSection = ({ apiStatus, apiStatusLabel }) => {
                       className="text-input"
                       placeholder="City, State or Country"
                       value={locationPreferences.specificLocation}
+                      disabled={isGenerating}
                       onChange={(event) =>
                         setLocationPreferences((previous) => ({
                           ...previous,

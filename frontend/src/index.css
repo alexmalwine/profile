@@ -496,6 +496,11 @@ main {
   box-shadow: var(--shadow);
 }
 
+.game-card.is-loading {
+  border-color: rgba(251, 191, 36, 0.6);
+  box-shadow: 0 0 0 1px rgba(251, 191, 36, 0.4), var(--shadow);
+}
+
 .game-card.placeholder {
   display: grid;
   gap: 0.75rem;
@@ -514,6 +519,38 @@ main {
   grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
   gap: 2rem;
   margin-top: 1.5rem;
+}
+
+.loading-banner {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem 1.25rem;
+  margin-top: 1.5rem;
+  border-radius: 14px;
+  border: 1px dashed rgba(251, 191, 36, 0.5);
+  background: rgba(251, 191, 36, 0.1);
+}
+
+.loading-spinner {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: 3px solid rgba(251, 191, 36, 0.35);
+  border-top-color: #fbbf24;
+  animation: spin 1s linear infinite;
+  flex-shrink: 0;
+}
+
+.loading-title {
+  margin: 0;
+  font-weight: 600;
+}
+
+.loading-subtitle {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.9rem;
 }
 
 .game-panel {
@@ -555,6 +592,12 @@ main {
   color: #f87171;
   background: rgba(248, 113, 113, 0.15);
   border-color: rgba(248, 113, 113, 0.4);
+}
+
+.status-badge.loading {
+  color: #fbbf24;
+  background: rgba(251, 191, 36, 0.15);
+  border-color: rgba(251, 191, 36, 0.4);
 }
 
 .status-badge.in_progress {
@@ -832,6 +875,12 @@ main {
 :focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 3px;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 @media (max-width: 960px) {
