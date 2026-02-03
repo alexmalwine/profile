@@ -6,6 +6,7 @@ import {
 import {
   MAX_RESUME_CHARS,
   OPENAI_API_URL,
+  OPENAI_MAX_TOKENS,
   OPENAI_MODEL,
   OPENAI_TIMEOUT_MS,
 } from './constants';
@@ -45,19 +46,21 @@ export class ChatGptJobSearchClient implements JobSearchClient {
           role: 'user',
           content:
             'Return JSON with fields summary, searchQueries, and jobs. ' +
-            'summary: 1-2 sentences about how the search was performed and ' +
-            'which industries or functions were targeted. ' +
-            'searchQueries: 5-8 queries that reflect the resume focus (for ' +
-            'example marketing, finance, healthcare, operations, or design). ' +
-            'jobs: 12-15 openings aligned to the resume focus with company, ' +
-            'title, location, source, rating (1-5), keywords (skills), url, ' +
-            'matchScore (0-100), and rationale. ' +
-            'Use real job boards in the source field. Only return JSON.\n\n' +
+            'summary: 1-2 sentences (<=35 words) about how the search was ' +
+            'performed and which industries or functions were targeted. ' +
+            'searchQueries: 5-8 short queries (<=6 words each) that reflect ' +
+            'the resume focus (for example marketing, finance, healthcare, ' +
+            'operations, or design). ' +
+            'jobs: 12 openings aligned to the resume focus with company, ' +
+            'title, location, source, rating (1-5), keywords (3-6 items), url, ' +
+            'matchScore (0-100), and rationale (<=20 words). ' +
+            'Use real job boards in the source field. Keep values concise, ' +
+            'avoid extra whitespace or Markdown, and return JSON only.\n\n' +
             `Resume:\n${trimmedResume}`,
         },
       ],
       temperature: 0.2,
-      max_tokens: 1200,
+      max_tokens: OPENAI_MAX_TOKENS,
       response_format: { type: 'json_object' },
     };
 
