@@ -1,8 +1,9 @@
 import {
   CanActivate,
   ExecutionContext,
+  HttpException,
+  HttpStatus,
   Injectable,
-  TooManyRequestsException,
 } from '@nestjs/common';
 import type { Request } from 'express';
 import {
@@ -39,8 +40,9 @@ export class UnemployedleRateLimitGuard implements CanActivate {
         1,
         Math.ceil((entry.resetAt - now) / 1000),
       );
-      throw new TooManyRequestsException(
+      throw new HttpException(
         `Too many resume searches. Try again in ${retryAfterSeconds}s.`,
+        HttpStatus.TOO_MANY_REQUESTS,
       );
     }
 
