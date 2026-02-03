@@ -10,7 +10,12 @@ import {
   OPENAI_RANKING_MAX_TOKENS,
   OPENAI_TIMEOUT_MS,
 } from './constants';
-import { safeParseJson, toNonEmptyString, truncateText } from './job-utils';
+import {
+  normalizeCompanySize,
+  safeParseJson,
+  toNonEmptyString,
+  truncateText,
+} from './job-utils';
 import type { JobOpening, JobRanker, JobRanking } from './types';
 
 const MAX_RANKING_JOBS = 30;
@@ -57,8 +62,10 @@ const normalizeRanking = (value: unknown): JobRanking | null => {
         ? Number(record.matchScore)
         : undefined;
 
-  const companySize =
-    typeof record.companySize === 'string' ? record.companySize : undefined;
+  const companySizeValue = toNonEmptyString(record.companySize);
+  const companySize = companySizeValue
+    ? normalizeCompanySize(companySizeValue)
+    : undefined;
   const companyHint = toNonEmptyString(record.companyHint) ?? undefined;
   const rationale = toNonEmptyString(record.rationale) ?? undefined;
 

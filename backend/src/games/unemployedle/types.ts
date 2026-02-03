@@ -90,8 +90,8 @@ export interface JobSearchJob {
   source?: string;
   rating?: number;
   keywords?: string[] | string;
-  companyUrl?: string;
-  sourceUrl?: string;
+  companyUrl?: string | null;
+  sourceUrl?: string | null;
   url?: string;
   matchScore?: number;
   companyHint?: string;
