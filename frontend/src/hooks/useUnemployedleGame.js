@@ -12,6 +12,12 @@ export const useUnemployedleGame = () => {
   const [jobsError, setJobsError] = useState('')
   const [isListing, setIsListing] = useState(false)
   const [topJobsSummary, setTopJobsSummary] = useState('')
+  const [locationPreferences, setLocationPreferences] = useState({
+    includeRemote: true,
+    includeLocal: true,
+    includeSpecific: false,
+    specificLocation: '',
+  })
 
   const handleResumeChange = (event) => {
     const file = event.target.files?.[0] ?? null
@@ -23,6 +29,13 @@ export const useUnemployedleGame = () => {
       setStartError('Please upload your resume to start.')
       return
     }
+    if (
+      locationPreferences.includeSpecific &&
+      !locationPreferences.specificLocation.trim()
+    ) {
+      setStartError('Enter a specific location or uncheck that option.')
+      return
+    }
 
     setIsStarting(true)
     setStartError('')
@@ -32,6 +45,24 @@ export const useUnemployedleGame = () => {
     try {
       const formData = new FormData()
       formData.append('resume', resumeFile)
+      formData.append(
+        'includeRemote',
+        locationPreferences.includeRemote ? 'true' : 'false',
+      )
+      formData.append(
+        'includeLocal',
+        locationPreferences.includeLocal ? 'true' : 'false',
+      )
+      formData.append(
+        'includeSpecific',
+        locationPreferences.includeSpecific ? 'true' : 'false',
+      )
+      if (locationPreferences.specificLocation.trim()) {
+        formData.append(
+          'specificLocation',
+          locationPreferences.specificLocation.trim(),
+        )
+      }
 
       const response = await fetch('/api/games/unemployedle/start', {
         method: 'POST',
@@ -62,6 +93,13 @@ export const useUnemployedleGame = () => {
       setJobsError('Please upload your resume to see the top 10 jobs.')
       return
     }
+    if (
+      locationPreferences.includeSpecific &&
+      !locationPreferences.specificLocation.trim()
+    ) {
+      setJobsError('Enter a specific location or uncheck that option.')
+      return
+    }
 
     setIsListing(true)
     setJobsError('')
@@ -71,6 +109,24 @@ export const useUnemployedleGame = () => {
     try {
       const formData = new FormData()
       formData.append('resume', resumeFile)
+      formData.append(
+        'includeRemote',
+        locationPreferences.includeRemote ? 'true' : 'false',
+      )
+      formData.append(
+        'includeLocal',
+        locationPreferences.includeLocal ? 'true' : 'false',
+      )
+      formData.append(
+        'includeSpecific',
+        locationPreferences.includeSpecific ? 'true' : 'false',
+      )
+      if (locationPreferences.specificLocation.trim()) {
+        formData.append(
+          'specificLocation',
+          locationPreferences.specificLocation.trim(),
+        )
+      }
 
       const response = await fetch('/api/games/unemployedle/jobs', {
         method: 'POST',
@@ -147,6 +203,12 @@ export const useUnemployedleGame = () => {
     setTopJobs([])
     setJobsError('')
     setTopJobsSummary('')
+    setLocationPreferences({
+      includeRemote: true,
+      includeLocal: true,
+      includeSpecific: false,
+      specificLocation: '',
+    })
   }
 
   return {
@@ -161,6 +223,8 @@ export const useUnemployedleGame = () => {
     jobsError,
     isListing,
     topJobsSummary,
+    locationPreferences,
+    setLocationPreferences,
     handleResumeChange,
     handleStartGame,
     handleFetchTopJobs,

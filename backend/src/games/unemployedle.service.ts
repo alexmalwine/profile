@@ -20,6 +20,7 @@ import {
   clampNumber,
   computeMatchScore,
   extractResumeKeywords,
+  extractResumeLocation,
   maskCompanyName,
   normalizeCompanyKey,
   normalizeCompanyHint,
@@ -36,6 +37,7 @@ import {
   type JobOpening,
   type JobRanker,
   type JobRanking,
+  type JobSearchOptions,
   type StartResponse,
   type TopJobsResponse,
 } from './unemployedle/types';
@@ -72,8 +74,14 @@ export class UnemployedleService {
     private readonly jobRanker: ChatGptJobRanker,
   ) {}
 
-  async startGame(resumeText: string): Promise<StartResponse> {
-    const { rankedJobs, searchResult } = await this.rankJobs(resumeText);
+  async startGame(
+    resumeText: string,
+    options?: JobSearchOptions,
+  ): Promise<StartResponse> {
+    const { rankedJobs, searchResult } = await this.rankJobs(
+      resumeText,
+      options,
+    );
     const selectedJob =
       rankedJobs[Math.floor(Math.random() * rankedJobs.length)];
 
@@ -103,8 +111,14 @@ export class UnemployedleService {
     return this.buildStartResponse(game, 'in_progress');
   }
 
-  async getTopJobs(resumeText: string): Promise<TopJobsResponse> {
-    const { rankedJobs, searchResult } = await this.rankJobs(resumeText);
+  async getTopJobs(
+    resumeText: string,
+    options?: JobSearchOptions,
+  ): Promise<TopJobsResponse> {
+    const { rankedJobs, searchResult } = await this.rankJobs(
+      resumeText,
+      options,
+    );
     return {
       selectionSummary: buildSelectionSummary(
         searchResult,
@@ -188,10 +202,12 @@ export class UnemployedleService {
     return 'in_progress' as const;
   }
 
-  private async rankJobs(resumeText: string) {
+  private async rankJobs(resumeText: string, options?: JobSearchOptions) {
     const resumeKeywords = extractResumeKeywords(resumeText);
-    const { verifiedJobs, searchResult } =
-      await this.gatherVerifiedJobs(resumeText);
+    const { verifiedJobs, searchResult } = await this.gatherVerifiedJobs(
+      resumeText,
+      options,
+    );
 
     if (verifiedJobs.length === 0) {
       this.logger.warn('ChatGPT returned no verifiable job links.');
@@ -300,18 +316,22 @@ export class UnemployedleService {
     });
   }
 
-  private async gatherVerifiedJobs(resumeText: string) {
+  private async gatherVerifiedJobs(
+    resumeText: string,
+    options?: JobSearchOptions,
+  ) {
     const maxAttempts = 3;
     const maxJobs = 20;
     const collected: JobOpening[] = [];
     const seen = new Set<string>();
     let summaryResult: CachedJobSearch['result'] | null = null;
+    const resolvedOptions = this.resolveSearchOptions(resumeText, options);
 
     for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
       const searchResult =
         attempt === 0
-          ? await this.getSearchResult(resumeText)
-          : await this.jobSearchClient.searchJobs(resumeText);
+          ? await this.getSearchResult(resumeText, resolvedOptions)
+          : await this.jobSearchClient.searchJobs(resumeText, resolvedOptions);
 
       if (!summaryResult) {
         summaryResult = searchResult;
@@ -773,8 +793,13 @@ export class UnemployedleService {
     }
   }
 
-  private async getSearchResult(resumeText: string) {
-    const cacheKey = createHash('sha256').update(resumeText).digest('hex');
+  private async getSearchResult(
+    resumeText: string,
+    options?: JobSearchOptions,
+  ) {
+    const cacheKey = createHash('sha256')
+      .update(`${resumeText}|${JSON.stringify(options ?? {})}`)
+      .digest('hex');
     const cached = this.searchCache.get(cacheKey);
 
     if (cached && Date.now() - cached.createdAt < CACHE_TTL_MS) {
@@ -785,10 +810,38 @@ export class UnemployedleService {
       this.searchCache.delete(cacheKey);
     }
 
-    const result = await this.jobSearchClient.searchJobs(resumeText);
+    const result = await this.jobSearchClient.searchJobs(resumeText, options);
     this.searchCache.set(cacheKey, { result, createdAt: Date.now() });
     this.cleanupSearchCache();
     return result;
+  }
+
+  private resolveSearchOptions(
+    resumeText: string,
+    options?: JobSearchOptions,
+  ): JobSearchOptions {
+    if (!options) {
+      return { includeRemote: true, includeLocal: true };
+    }
+
+    const includeRemote = Boolean(options.includeRemote);
+    const includeLocal = Boolean(options.includeLocal);
+    const specificLocation = toNonEmptyString(options.specificLocation);
+    const localLocation = includeLocal
+      ? toNonEmptyString(options.localLocation) ??
+        extractResumeLocation(resumeText)
+      : null;
+
+    if (!includeRemote && !includeLocal && !specificLocation) {
+      return { includeRemote: true, includeLocal: true, localLocation };
+    }
+
+    return {
+      includeRemote,
+      includeLocal,
+      specificLocation,
+      localLocation,
+    };
   }
 
   private cleanupSearchCache() {

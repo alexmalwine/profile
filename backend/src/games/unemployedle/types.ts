@@ -106,7 +106,10 @@ export interface JobSearchResult {
 }
 
 export interface JobSearchClient {
-  searchJobs(resumeText: string): Promise<JobSearchResult>;
+  searchJobs(
+    resumeText: string,
+    options?: JobSearchOptions,
+  ): Promise<JobSearchResult>;
 }
 
 export interface JobRanking {
@@ -119,6 +122,13 @@ export interface JobRanking {
 
 export interface JobRanker {
   rankJobs(resumeText: string, jobs: JobOpening[]): Promise<JobRanking[]>;
+}
+
+export interface JobSearchOptions {
+  includeRemote?: boolean;
+  includeLocal?: boolean;
+  specificLocation?: string | null;
+  localLocation?: string | null;
 }
 
 export interface CachedJobSearch {

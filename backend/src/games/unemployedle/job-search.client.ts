@@ -21,7 +21,12 @@ import {
   normalizeJobSource,
   toNonEmptyString,
 } from './job-utils';
-import type { JobSearchClient, JobSearchJob, JobSearchResult } from './types';
+import type {
+  JobSearchClient,
+  JobSearchJob,
+  JobSearchOptions,
+  JobSearchResult,
+} from './types';
 
 const JOB_BOARD_HOSTS = ['linkedin.com', 'glassdoor.com', 'indeed.com'];
 
@@ -63,7 +68,10 @@ export class JobBoardSearchClient implements JobSearchClient {
     ),
   );
 
-  async searchJobs(resumeText: string): Promise<JobSearchResult> {
+  async searchJobs(
+    resumeText: string,
+    options: JobSearchOptions = {},
+  ): Promise<JobSearchResult> {
     if (!this.apiKey) {
       throw new ServiceUnavailableException(
         'SERPAPI_API_KEY is not configured for job search.',
@@ -72,14 +80,29 @@ export class JobBoardSearchClient implements JobSearchClient {
 
     const resumeKeywords = Array.from(extractResumeKeywords(resumeText));
     const baseQueries = this.buildSearchQueries(resumeText, resumeKeywords);
-    const queries = baseQueries.slice(0, JOB_BOARD_MAX_GOOGLE_JOBS_QUERIES);
-    const boardQueries = baseQueries.slice(0, JOB_BOARD_MAX_BOARD_QUERIES);
-    const fortuneQueries = baseQueries.slice(0, JOB_BOARD_MAX_FORTUNE_QUERIES);
+    const locationVariants = this.buildLocationVariants(options);
+    const queries = this.expandQueries(
+      baseQueries,
+      locationVariants,
+      JOB_BOARD_MAX_GOOGLE_JOBS_QUERIES,
+    );
+    const boardQueries = this.expandQueries(
+      baseQueries,
+      locationVariants,
+      JOB_BOARD_MAX_BOARD_QUERIES,
+    );
+    const fortuneQueries = this.expandQueries(
+      baseQueries,
+      locationVariants,
+      JOB_BOARD_MAX_FORTUNE_QUERIES,
+    );
 
     const jobResults: JobSearchJob[] = [];
 
     const googleJobs = await Promise.allSettled(
-      queries.map((query) => this.fetchGoogleJobs(query)),
+      queries.map((query) =>
+        this.fetchGoogleJobs(query.query, query.location),
+      ),
     );
     googleJobs.forEach((result) => {
       if (result.status === 'fulfilled') {
@@ -92,9 +115,17 @@ export class JobBoardSearchClient implements JobSearchClient {
     });
 
     const boardSearches = boardQueries.flatMap((query) => [
-      this.fetchBoardJobs('LinkedIn', 'linkedin.com/jobs/view', query),
-      this.fetchBoardJobs('Indeed', 'indeed.com/viewjob', query),
-      this.fetchBoardJobs('Glassdoor', 'glassdoor.com/job-listing', query),
+      this.fetchBoardJobs(
+        'LinkedIn',
+        'linkedin.com/jobs/view',
+        query.query,
+      ),
+      this.fetchBoardJobs('Indeed', 'indeed.com/viewjob', query.query),
+      this.fetchBoardJobs(
+        'Glassdoor',
+        'glassdoor.com/job-listing',
+        query.query,
+      ),
     ]);
 
     const boardResults = await Promise.allSettled(boardSearches);
@@ -120,16 +151,24 @@ export class JobBoardSearchClient implements JobSearchClient {
     const deduped = this.dedupeJobs(jobResults);
 
     return {
-      summary: this.buildSummary(queries, deduped.length),
-      searchQueries: queries,
+      summary: this.buildSummary(
+        queries.map((query) => query.query),
+        deduped.length,
+        locationVariants.map((variant) => variant.label),
+      ),
+      searchQueries: queries.map((query) => query.query),
       jobs: deduped.slice(0, JOB_BOARD_MAX_TOTAL_RESULTS),
     };
   }
 
-  private async fetchGoogleJobs(query: string): Promise<JobSearchJob[]> {
+  private async fetchGoogleJobs(
+    query: string,
+    location?: string,
+  ): Promise<JobSearchJob[]> {
     const payload = await this.requestSerpApi({
       engine: 'google_jobs',
       q: query,
+      ...(location ? { location } : {}),
       num: String(JOB_BOARD_MAX_RESULTS_PER_QUERY),
     });
 
@@ -237,7 +276,7 @@ export class JobBoardSearchClient implements JobSearchClient {
   }
 
   private async fetchFortune500Jobs(
-    queries: string[],
+    queries: Array<{ query: string; label: string }>,
   ): Promise<JobSearchJob[]> {
     if (queries.length === 0) {
       return [];
@@ -245,7 +284,10 @@ export class JobBoardSearchClient implements JobSearchClient {
 
     const companies = FORTUNE_500_CAREER_SITES.slice(0, queries.length * 3);
     const tasks = companies.map((company, index) =>
-      this.fetchFortuneCompanyJobs(company, queries[index % queries.length]),
+      this.fetchFortuneCompanyJobs(
+        company,
+        queries[index % queries.length].query,
+      ),
     );
 
     const results = await Promise.allSettled(tasks);
@@ -472,9 +514,81 @@ export class JobBoardSearchClient implements JobSearchClient {
     return Array.from(queries);
   }
 
-  private buildSummary(queries: string[], jobCount: number) {
+  private buildSummary(
+    queries: string[],
+    jobCount: number,
+    locationLabels: string[],
+  ) {
     const queryText = queries.slice(0, 3).join(', ');
-    return `Queried LinkedIn, Indeed, Glassdoor, Google Jobs, and Fortune 500 career sites using ${queries.length} resume-driven queries (${queryText}). Found ${jobCount} candidate openings.`;
+    const locationText = locationLabels.length
+      ? ` Location filters: ${locationLabels.join(', ')}.`
+      : '';
+    return `Queried LinkedIn, Indeed, Glassdoor, Google Jobs, and Fortune 500 career sites using ${queries.length} resume-driven queries (${queryText}). Found ${jobCount} candidate openings.${locationText}`;
+  }
+
+  private buildLocationVariants(options: JobSearchOptions) {
+    const variants: Array<{ label: string; suffix?: string; location?: string }> =
+      [];
+
+    const includeRemote = Boolean(options.includeRemote);
+    const includeLocal = Boolean(options.includeLocal);
+    const specificLocation = toNonEmptyString(options.specificLocation);
+    const localLocation = toNonEmptyString(options.localLocation);
+
+    if (includeRemote) {
+      variants.push({
+        label: 'remote',
+        suffix: 'remote',
+        location: 'United States',
+      });
+    }
+
+    if (includeLocal && localLocation) {
+      variants.push({
+        label: `local (${localLocation})`,
+        location: localLocation,
+      });
+    }
+
+    if (specificLocation) {
+      variants.push({
+        label: `specific (${specificLocation})`,
+        location: specificLocation,
+      });
+    }
+
+    if (variants.length === 0) {
+      variants.push({ label: 'anywhere' });
+    }
+
+    return variants;
+  }
+
+  private expandQueries(
+    baseQueries: string[],
+    variants: Array<{ label: string; suffix?: string; location?: string }>,
+    maxQueries: number,
+  ) {
+    const expanded: Array<{ query: string; location?: string }> = [];
+
+    for (const baseQuery of baseQueries) {
+      for (const variant of variants) {
+        if (expanded.length >= maxQueries) {
+          break;
+        }
+        const suffix = variant.suffix ? ` ${variant.suffix}` : '';
+        const location = variant.location;
+        const query = `${baseQuery}${suffix}${
+          location && !suffix ? ` ${location}` : ''
+        }`.trim();
+        expanded.push({ query, location });
+      }
+      if (expanded.length >= maxQueries) {
+        break;
+      }
+    }
+
+    return expanded;
   }
 
   private parseTitleCompany(text: string) {

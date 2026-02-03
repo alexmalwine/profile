@@ -126,7 +126,7 @@ describe('UnemployedleService', () => {
   beforeEach(() => {
     service = new UnemployedleService(
       {
-        searchJobs: async () => stubSearchResult,
+        searchJobs: async (_resume: string, _options?: any) => stubSearchResult,
       } as any,
       {
         rankJobs: async () => [],

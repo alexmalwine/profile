@@ -41,6 +41,25 @@ export const extractKeywordsFromText = (text: string) => {
   return KNOWN_KEYWORDS.filter((keyword) => lower.includes(keyword));
 };
 
+export const extractResumeLocation = (resumeText: string) => {
+  const lines = resumeText
+    .split('\n')
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .slice(0, 12);
+
+  for (const line of lines) {
+    const match = line.match(
+      /([A-Z][a-zA-Z.\- ]+),\s*([A-Z]{2})\b/,
+    );
+    if (match) {
+      return `${match[1].trim()}, ${match[2].trim()}`;
+    }
+  }
+
+  return null;
+};
+
 export const computeMatchScore = (
   job: JobOpening,
   resumeKeywords: Set<string>,

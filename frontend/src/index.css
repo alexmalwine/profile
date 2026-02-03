@@ -589,6 +589,32 @@ main {
   font-size: 0.9rem;
 }
 
+.form-group {
+  display: grid;
+  gap: 0.65rem;
+}
+
+.checkbox {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.95rem;
+  color: var(--muted);
+}
+
+.checkbox input {
+  accent-color: var(--primary);
+}
+
+.text-input {
+  padding: 0.55rem 0.75rem;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text);
+  font-size: 0.95rem;
+}
+
 .game-actions {
   display: flex;
   gap: 1rem;
