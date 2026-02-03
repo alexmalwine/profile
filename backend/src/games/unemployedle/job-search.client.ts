@@ -30,6 +30,417 @@ import type {
 
 const JOB_BOARD_HOSTS = ['linkedin.com', 'glassdoor.com', 'indeed.com'];
 
+type QueryRule = {
+  query: string;
+  keywords: string[];
+};
+
+const ROLE_QUERY_RULES: QueryRule[] = [
+  {
+    query: 'software engineer',
+    keywords: ['software', 'engineering', 'developer', 'development', 'web'],
+  },
+  {
+    query: 'frontend engineer',
+    keywords: ['frontend', 'react', 'user interface', 'ui', 'user experience', 'ux'],
+  },
+  {
+    query: 'backend engineer',
+    keywords: [
+      'backend',
+      'api',
+      'microservices',
+      'serverless',
+      'node',
+      'python',
+      'java',
+      'golang',
+      'ruby',
+      'php',
+      'dotnet',
+    ],
+  },
+  {
+    query: 'fullstack engineer',
+    keywords: ['fullstack', 'full stack'],
+  },
+  {
+    query: 'devops engineer',
+    keywords: [
+      'devops',
+      'sre',
+      'site reliability',
+      'kubernetes',
+      'docker',
+      'terraform',
+      'ansible',
+      'cloud',
+      'aws',
+      'gcp',
+      'azure',
+    ],
+  },
+  {
+    query: 'mobile engineer',
+    keywords: ['mobile', 'ios', 'android', 'react native'],
+  },
+  {
+    query: 'data analyst',
+    keywords: [
+      'data analysis',
+      'data analytics',
+      'analytics',
+      'business intelligence',
+      'sql',
+      'dashboard',
+      'reporting',
+      'tableau',
+      'power bi',
+      'excel',
+    ],
+  },
+  {
+    query: 'data scientist',
+    keywords: [
+      'data science',
+      'data scientist',
+      'machine learning',
+      'statistics',
+      'predictive modeling',
+      'experimentation',
+      'a/b testing',
+    ],
+  },
+  {
+    query: 'data engineer',
+    keywords: [
+      'data engineering',
+      'etl',
+      'data warehouse',
+      'bigquery',
+      'snowflake',
+    ],
+  },
+  {
+    query: 'product manager',
+    keywords: ['product management', 'product manager', 'product strategy', 'roadmap'],
+  },
+  {
+    query: 'project manager',
+    keywords: [
+      'project management',
+      'project manager',
+      'pmp',
+      'scrum',
+      'agile',
+      'kanban',
+      'jira',
+      'stakeholder management',
+      'requirements',
+      'user stories',
+    ],
+  },
+  {
+    query: 'program manager',
+    keywords: ['program management', 'program manager'],
+  },
+  {
+    query: 'marketing manager',
+    keywords: [
+      'marketing',
+      'digital marketing',
+      'growth marketing',
+      'performance marketing',
+      'brand',
+      'campaign management',
+      'content marketing',
+      'demand generation',
+      'lead generation',
+      'seo',
+      'sem',
+      'ppc',
+      'paid search',
+      'paid social',
+      'email marketing',
+      'marketing automation',
+    ],
+  },
+  {
+    query: 'account executive',
+    keywords: [
+      'account executive',
+      'business development',
+      'inside sales',
+      'outside sales',
+      'salesforce',
+      'pipeline management',
+      'lead generation',
+    ],
+  },
+  {
+    query: 'sales manager',
+    keywords: [
+      'sales',
+      'account management',
+      'sales operations',
+      'revenue operations',
+      'renewals',
+      'upsell',
+      'cross-sell',
+    ],
+  },
+  {
+    query: 'customer success manager',
+    keywords: ['customer success', 'customer support', 'customer service'],
+  },
+  {
+    query: 'financial analyst',
+    keywords: [
+      'finance',
+      'financial analysis',
+      'financial modeling',
+      'budgeting',
+      'forecasting',
+      'fp&a',
+      'treasury',
+      'investments',
+    ],
+  },
+  {
+    query: 'accountant',
+    keywords: [
+      'accounting',
+      'bookkeeping',
+      'accounts payable',
+      'accounts receivable',
+      'gaap',
+      'audit',
+      'tax',
+      'controller',
+      'cpa',
+    ],
+  },
+  {
+    query: 'hr manager',
+    keywords: [
+      'human resources',
+      'people operations',
+      'performance management',
+      'compensation',
+      'benefits',
+      'payroll',
+      'hris',
+      'employee relations',
+    ],
+  },
+  {
+    query: 'recruiter',
+    keywords: ['recruiting', 'talent acquisition', 'talent management', 'onboarding'],
+  },
+  {
+    query: 'operations manager',
+    keywords: [
+      'operations',
+      'supply chain',
+      'logistics',
+      'procurement',
+      'inventory',
+      'warehouse',
+      'fulfillment',
+      'shipping',
+      'transportation',
+    ],
+  },
+  {
+    query: 'product designer',
+    keywords: [
+      'product design',
+      'user experience',
+      'user interface',
+      'ux research',
+      'user research',
+      'interaction design',
+      'figma',
+    ],
+  },
+  {
+    query: 'graphic designer',
+    keywords: [
+      'graphic design',
+      'visual design',
+      'branding',
+      'typography',
+      'illustrator',
+      'photoshop',
+      'indesign',
+      'motion design',
+      'video editing',
+    ],
+  },
+  {
+    query: 'registered nurse',
+    keywords: ['nursing', 'nurse', 'patient care', 'clinical', 'medical'],
+  },
+  {
+    query: 'teacher',
+    keywords: [
+      'education',
+      'teaching',
+      'teacher',
+      'curriculum',
+      'instruction',
+      'lesson planning',
+      'classroom',
+    ],
+  },
+  {
+    query: 'instructional designer',
+    keywords: ['instructional design', 'lms', 'edtech'],
+  },
+  {
+    query: 'paralegal',
+    keywords: ['legal', 'paralegal', 'litigation', 'contracts'],
+  },
+  {
+    query: 'compliance analyst',
+    keywords: [
+      'compliance',
+      'regulatory',
+      'privacy',
+      'gdpr',
+      'policy',
+      'governance',
+      'ethics',
+    ],
+  },
+  {
+    query: 'process engineer',
+    keywords: [
+      'process engineering',
+      'manufacturing',
+      'production',
+      'quality assurance',
+      'quality control',
+      'lean',
+      'six sigma',
+    ],
+  },
+  {
+    query: 'mechanical engineer',
+    keywords: ['mechanical', 'cad', 'autocad', 'solidworks'],
+  },
+  {
+    query: 'construction manager',
+    keywords: ['construction', 'site management', 'safety', 'osha'],
+  },
+  {
+    query: 'field service technician',
+    keywords: ['maintenance', 'field service'],
+  },
+  {
+    query: 'hotel manager',
+    keywords: ['hospitality', 'hotel', 'event planning', 'tourism'],
+  },
+  {
+    query: 'restaurant manager',
+    keywords: ['restaurant', 'food service'],
+  },
+  {
+    query: 'retail manager',
+    keywords: ['retail', 'merchandising', 'store operations', 'customer experience'],
+  },
+  {
+    query: 'property manager',
+    keywords: ['real estate', 'property management', 'leasing', 'mortgage'],
+  },
+  {
+    query: 'insurance analyst',
+    keywords: ['insurance', 'underwriting', 'claims', 'actuarial'],
+  },
+  {
+    query: 'nonprofit program manager',
+    keywords: [
+      'nonprofit',
+      'grant writing',
+      'fundraising',
+      'community outreach',
+      'program evaluation',
+    ],
+  },
+  {
+    query: 'sustainability analyst',
+    keywords: [
+      'energy',
+      'renewable energy',
+      'utilities',
+      'oil and gas',
+      'sustainability',
+      'environmental',
+    ],
+  },
+];
+
+const TITLE_TOKENS = [
+  'engineer',
+  'developer',
+  'designer',
+  'manager',
+  'analyst',
+  'scientist',
+  'architect',
+  'consultant',
+  'specialist',
+  'coordinator',
+  'administrator',
+  'strategist',
+  'director',
+  'producer',
+  'technician',
+  'recruiter',
+  'nurse',
+  'teacher',
+  'paralegal',
+  'accountant',
+  'executive',
+  'assistant',
+];
+
+const SKILL_HINTS = [
+  'typescript',
+  'javascript',
+  'react',
+  'react native',
+  'node',
+  'python',
+  'java',
+  'golang',
+  'ruby',
+  'php',
+  'dotnet',
+  'aws',
+  'gcp',
+  'azure',
+  'kubernetes',
+  'docker',
+  'terraform',
+  'sql',
+  'tableau',
+  'power bi',
+  'excel',
+  'salesforce',
+  'hubspot',
+  'marketo',
+  'google analytics',
+  'google ads',
+  'adwords',
+  'meta ads',
+  'figma',
+  'adobe',
+  'photoshop',
+  'illustrator',
+  'indesign',
+];
+
 const normalizeHostname = (host: string) =>
   host.toLowerCase().replace(/^www\./, '');
 
@@ -462,53 +873,103 @@ export class JobBoardSearchClient implements JobSearchClient {
   private buildSearchQueries(resumeText: string, keywords: string[]) {
     const lower = resumeText.toLowerCase();
     const queries = new Set<string>();
-    const isSenior = /(senior|staff|lead|principal)/i.test(lower);
+    const normalizedKeywords = Array.from(
+      new Set(
+        keywords
+          .map((keyword) => keyword.toLowerCase().trim())
+          .filter(Boolean),
+      ),
+    );
+    const isSenior =
+      /\b(senior|staff|principal)\b/i.test(lower) ||
+      /\blead\s+(engineer|developer|designer|manager|analyst|scientist|architect|consultant|specialist|coordinator|administrator|strategist|director)\b/i.test(
+        lower,
+      );
     const prefix = isSenior ? 'senior ' : '';
+    let primaryQuery: string | null = null;
+
+    const keywordMatches = normalizedKeywords
+      .map((keyword) => ({
+        keyword,
+        index: lower.indexOf(keyword),
+      }))
+      .filter((entry) => entry.index >= 0)
+      .sort((a, b) => a.index - b.index);
+    const orderedKeywords = keywordMatches.map((entry) => entry.keyword);
+
+    const keywordHasTerm = (keyword: string, term: string) => {
+      if (keyword === term) {
+        return true;
+      }
+      if (term.includes(' ')) {
+        return keyword.includes(term);
+      }
+      return keyword.split(/\s+/).includes(term);
+    };
+
+    const hasKeyword = (term: string) =>
+      normalizedKeywords.some((keyword) => keywordHasTerm(keyword, term));
+
+    const shouldApplySeniority = (query: string) =>
+      Boolean(prefix) &&
+      !query.startsWith(prefix) &&
+      TITLE_TOKENS.some((token) => query.includes(token));
 
     const add = (query: string) => {
       const trimmed = query.trim();
-      if (trimmed.length > 0) {
-        queries.add(trimmed);
+      if (!trimmed) {
+        return;
+      }
+      const formatted = shouldApplySeniority(trimmed)
+        ? `${prefix}${trimmed}`
+        : trimmed;
+      if (!queries.has(formatted)) {
+        queries.add(formatted);
+        if (!primaryQuery) {
+          primaryQuery = formatted;
+        }
       }
     };
 
-    const has = (term: string) => lower.includes(term);
-    const hasKeyword = (term: string) =>
-      keywords.some((keyword) => keyword.includes(term));
-
-    if (has('software engineer') || (hasKeyword('software') && hasKeyword('engineering'))) {
-      add(`${prefix}software engineer`);
-    }
-    if (has('frontend') || hasKeyword('frontend') || hasKeyword('react')) {
-      add(`${prefix}frontend engineer react`);
-    }
-    if (has('backend') || hasKeyword('backend') || hasKeyword('node')) {
-      add(`${prefix}backend engineer node`);
-    }
-    if (has('fullstack') || hasKeyword('fullstack') || hasKeyword('full stack')) {
-      add(`${prefix}fullstack engineer`);
-    }
-    if (has('platform') || hasKeyword('devops') || hasKeyword('sre')) {
-      add(`${prefix}platform engineer`);
-    }
-    if (has('mobile') || hasKeyword('react native')) {
-      add(`${prefix}mobile engineer react native`);
-    }
-
-    const skillHints = keywords.filter((keyword) =>
-      ['typescript', 'react', 'node', 'aws', 'kubernetes'].some((term) =>
-        keyword.includes(term),
+    const scoredRules = ROLE_QUERY_RULES.map((rule, index) => ({
+      rule,
+      index,
+      score: rule.keywords.reduce(
+        (total, term) => total + (hasKeyword(term) ? 1 : 0),
+        0,
       ),
+    }))
+      .filter((entry) => entry.score > 0)
+      .sort((a, b) => b.score - a.score || a.index - b.index);
+
+    const phraseKeywords = orderedKeywords.filter((keyword) =>
+      keyword.includes(' '),
     );
-    if (skillHints.length > 0) {
-      add(
-        `${prefix}software engineer ${skillHints.slice(0, 2).join(' ')}`.trim(),
-      );
+    const titlePhrases = phraseKeywords.filter((keyword) =>
+      TITLE_TOKENS.some((token) => keyword.includes(token)),
+    );
+    const titlePhraseSet = new Set(titlePhrases);
+    const domainPhrases = phraseKeywords.filter(
+      (keyword) => !titlePhraseSet.has(keyword),
+    );
+
+    titlePhrases.slice(0, 2).forEach((keyword) => add(keyword));
+
+    scoredRules.forEach((entry) => add(entry.rule.query));
+
+    domainPhrases.slice(0, 2).forEach((keyword) => add(keyword));
+
+    const skillHints = orderedKeywords.filter((keyword) =>
+      SKILL_HINTS.some((term) => keywordHasTerm(keyword, term)),
+    );
+    const uniqueSkillHints = Array.from(new Set(skillHints)).slice(0, 2);
+    if (primaryQuery && uniqueSkillHints.length > 0) {
+      add(`${primaryQuery} ${uniqueSkillHints.join(' ')}`);
     }
 
     if (queries.size === 0) {
-      add(`${prefix}software engineer`);
-      add(`${prefix}fullstack engineer`);
+      add('software engineer');
+      add('fullstack engineer');
     }
 
     return Array.from(queries);
