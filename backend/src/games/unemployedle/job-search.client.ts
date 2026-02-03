@@ -53,7 +53,7 @@ export class ChatGptJobSearchClient implements JobSearchClient {
             'operations, or design). ' +
             'jobs: 12 openings aligned to the resume focus with company, ' +
             'title, location, source, rating (1-5), keywords (3-6 items), ' +
-            'companyUrl, sourceUrl, matchScore (0-100), and rationale ' +
+            'companyUrl, sourceUrl, companyHint, matchScore (0-100), and rationale ' +
             '(<=20 words). ' +
             'companyUrl must be a direct job posting on the hiring company ' +
             'careers/ATS site (Workday, Greenhouse, Lever, SmartRecruiters, etc). ' +
@@ -63,6 +63,8 @@ export class ChatGptJobSearchClient implements JobSearchClient {
             '/job-listing). Include the job ID in the URL (LinkedIn job id in ' +
             '/jobs/view/<id>, Indeed jk=..., Glassdoor jl=... or jobListingId=...). ' +
             'If you cannot provide a job ID, set sourceUrl to null. ' +
+            'companyHint must describe what the company does in <=15 words ' +
+            'and must not include the company name. If unsure, set null. ' +
             'Do not use search-result or Google URLs. ' +
             'Use real job boards in the source field. Keep values concise, ' +
             'avoid extra whitespace or Markdown, and return JSON only.\n\n' +

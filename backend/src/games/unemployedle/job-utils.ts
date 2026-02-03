@@ -115,6 +115,69 @@ export const normalizeMatchScore = (value: unknown) => {
   return clampNumber(value, 0, 1);
 };
 
+const MAX_HINT_CHARS = 160;
+
+const truncateHint = (value: string) =>
+  value.length > MAX_HINT_CHARS ? value.slice(0, MAX_HINT_CHARS).trim() : value;
+
+const normalizeCompanyHint = (value: unknown, company: string) => {
+  const hint = toNonEmptyString(value);
+  if (!hint) {
+    return null;
+  }
+
+  const sanitized = hint.replace(/\s+/g, ' ').trim();
+  if (!sanitized) {
+    return null;
+  }
+
+  const normalizedHint = sanitized
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim();
+  const normalizedCompany = company
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim();
+
+  if (normalizedCompany && normalizedHint.includes(normalizedCompany)) {
+    return null;
+  }
+
+  return truncateHint(sanitized);
+};
+
+const buildFallbackHint = (title: string, keywords: string[]) => {
+  const trimmedTitle = title.trim();
+  const hint =
+    keywords.length > 0
+      ? `This company hires for ${trimmedTitle} roles focused on ${keywords
+          .slice(0, 3)
+          .join(', ')}.`
+      : `This company is hiring for a ${trimmedTitle} role.`;
+
+  return truncateHint(hint);
+};
+
+const filterKeywordsForHint = (keywords: string[], company: string) => {
+  const normalizedCompany = company
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim();
+  if (!normalizedCompany) {
+    return keywords;
+  }
+  const tokens = normalizedCompany.split(' ').filter((token) => token.length);
+  if (tokens.length === 0) {
+    return keywords;
+  }
+
+  return keywords.filter((keyword) => {
+    const normalizedKeyword = keyword.toLowerCase();
+    return !tokens.some((token) => normalizedKeyword.includes(token));
+  });
+};
+
 export const buildJobId = (
   company: string,
   title: string,
@@ -369,6 +432,10 @@ export const normalizeJobResults = (jobs: JobSearchJob[]) => {
       providedKeywords.length > 0
         ? providedKeywords
         : extractKeywordsFromText(`${title} ${company} ${location}`);
+    const hintKeywords = filterKeywordsForHint(keywords, company);
+    const companyHint =
+      normalizeCompanyHint(job.companyHint, company) ??
+      buildFallbackHint(title, hintKeywords);
     const url = normalizeJobUrl(job, source, company, title, location);
     const matchScoreHint = normalizeMatchScore(job.matchScore) ?? undefined;
     const id = buildJobId(company, title, location, url);
@@ -389,6 +456,7 @@ export const normalizeJobResults = (jobs: JobSearchJob[]) => {
       keywords,
       url,
       matchScoreHint,
+      companyHint,
     });
   });
 

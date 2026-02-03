@@ -236,6 +236,11 @@ const GamesSection = ({ apiStatus, apiStatusLabel }) => {
                     </span>
                   </div>
                 </div>
+                {gameState?.hint && (
+                  <p className="note">
+                    Hint: {gameState.hint}
+                  </p>
+                )}
 
                 <div className="letters-grid" aria-label="Guess a letter">
                   {LETTERS.map((letter) => {

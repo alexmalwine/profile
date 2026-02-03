@@ -66,7 +66,7 @@ export class UnemployedleService {
     this.games.set(game.id, game);
     this.cleanupOldGames();
 
-    return this.buildStartResponse(game);
+    return this.buildStartResponse(game, 'in_progress');
   }
 
   async getTopJobs(resumeText: string): Promise<TopJobsResponse> {
@@ -97,9 +97,9 @@ export class UnemployedleService {
 
     const currentStatus = this.resolveStatus(game);
     if (currentStatus !== 'in_progress') {
+      const response = this.buildStartResponse(game, currentStatus);
       return {
-        ...this.buildStartResponse(game),
-        status: currentStatus,
+        ...response,
         alreadyGuessed: false,
         revealedCompany: game.company,
         jobUrl: game.job.url,
@@ -127,9 +127,10 @@ export class UnemployedleService {
     }
 
     const status = this.resolveStatus(game);
+    const response = this.buildStartResponse(game, status);
 
     return {
-      ...this.buildStartResponse(game),
+      ...response,
       status,
       alreadyGuessed,
       ...(status !== 'in_progress'
@@ -184,14 +185,18 @@ export class UnemployedleService {
     return { rankedJobs, searchResult };
   }
 
-  private buildStartResponse(game: GameState): StartResponse {
+  private buildStartResponse(
+    game: GameState,
+    status: StartResponse['status'],
+  ): StartResponse {
     return {
       gameId: game.id,
       maskedCompany: game.maskedCompany,
       guessesLeft: game.guessesLeft,
       maxGuesses: game.maxGuesses,
-      status: 'in_progress',
+      status,
       selectionSummary: game.selectionSummary,
+      hint: this.buildHint(game, status),
       job: {
         title: game.job.title,
         location: game.job.location,
@@ -203,6 +208,16 @@ export class UnemployedleService {
       guessedLetters: Array.from(game.guessedLetters).sort(),
       incorrectGuesses: Array.from(game.incorrectGuesses).sort(),
     };
+  }
+
+  private buildHint(game: GameState, status: StartResponse['status']) {
+    if (status !== 'in_progress') {
+      return undefined;
+    }
+    if (game.guessesLeft > 2) {
+      return undefined;
+    }
+    return game.job.companyHint;
   }
 
   private cleanupOldGames() {

@@ -16,6 +16,7 @@ export interface JobOpening {
   keywords: string[];
   url: string;
   matchScoreHint?: number;
+  companyHint?: string;
 }
 
 export interface RankedJob extends JobOpening {
@@ -43,6 +44,7 @@ export interface StartResponse {
   maxGuesses: number;
   status: 'in_progress' | 'won' | 'lost';
   selectionSummary: string;
+  hint?: string;
   job: {
     title: string;
     location: string;
@@ -87,6 +89,7 @@ export interface JobSearchJob {
   sourceUrl?: string;
   url?: string;
   matchScore?: number;
+  companyHint?: string;
   rationale?: string;
 }
 
