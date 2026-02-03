@@ -441,6 +441,46 @@ const SKILL_HINTS = [
   'indesign',
 ];
 
+const RESUME_TITLE_TOKENS = [
+  ...TITLE_TOKENS,
+  'founder',
+  'owner',
+  'president',
+  'officer',
+  'intern',
+];
+
+const EXPERIENCE_HEADERS = [
+  'experience',
+  'work experience',
+  'professional experience',
+  'employment',
+  'employment history',
+  'work history',
+  'career history',
+];
+
+const SECTION_HEADERS = [
+  ...EXPERIENCE_HEADERS,
+  'education',
+  'skills',
+  'projects',
+  'certifications',
+  'certificates',
+  'awards',
+  'summary',
+  'profile',
+  'volunteer',
+  'publications',
+  'interests',
+  'references',
+  'activities',
+  'languages',
+  'training',
+];
+
+const TITLE_SEPARATORS = [' - ', ' – ', ' | ', ' @ ', ' at ', ', '];
+
 const normalizeHostname = (host: string) =>
   host.toLowerCase().replace(/^www\./, '');
 
@@ -465,6 +505,150 @@ const normalizeUrl = (value: unknown) => {
   } catch {
     return null;
   }
+};
+
+const normalizeResumeLines = (resumeText: string) =>
+  resumeText
+    .replace(/\t/g, ' ')
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+
+const normalizeHeaderLine = (line: string) =>
+  line
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+const matchesHeader = (line: string, headers: string[]) => {
+  const normalized = normalizeHeaderLine(line);
+  return headers.some(
+    (header) =>
+      normalized === header || normalized.startsWith(`${header} `),
+  );
+};
+
+const escapeRegExp = (value: string) =>
+  value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+const tokenMatches = (text: string, token: string) => {
+  if (!token) {
+    return false;
+  }
+  if (token.includes(' ')) {
+    return text.includes(token);
+  }
+  return new RegExp(`\\b${escapeRegExp(token)}\\b`).test(text);
+};
+
+const scoreTokens = (text: string, tokens: string[]) =>
+  tokens.reduce((total, token) => total + (tokenMatches(text, token) ? 1 : 0), 0);
+
+const pickBestTitle = (candidates: string[]) => {
+  let best: { title: string; score: number; length: number } | null = null;
+
+  candidates.forEach((candidate) => {
+    const trimmed = candidate.trim();
+    if (!trimmed) {
+      return;
+    }
+    const lower = trimmed.toLowerCase();
+    const score = scoreTokens(lower, RESUME_TITLE_TOKENS);
+    if (score <= 0) {
+      return;
+    }
+    const length = trimmed.length;
+    if (
+      !best ||
+      score > best.score ||
+      (score === best.score && length < best.length)
+    ) {
+      best = { title: trimmed, score, length };
+    }
+  });
+
+  return best?.title ?? null;
+};
+
+const cleanJobTitle = (value: string) =>
+  value
+    .replace(/\s*\((?:19|20)\d{2}.*?\)\s*$/i, '')
+    .replace(/\b(19|20)\d{2}\b.*$/g, '')
+    .replace(/\s+(present|current)\b.*$/i, '')
+    .trim();
+
+const extractTitleFromLine = (line: string) => {
+  const sanitized = line.replace(/^[-*•]+/, '').trim();
+  if (!sanitized || sanitized.length > 120) {
+    return null;
+  }
+
+  const lower = sanitized.toLowerCase();
+  if (scoreTokens(lower, RESUME_TITLE_TOKENS) === 0) {
+    return null;
+  }
+
+  const candidates = [sanitized];
+  TITLE_SEPARATORS.forEach((separator) => {
+    if (sanitized.includes(separator)) {
+      const parts = sanitized
+        .split(separator)
+        .map((part) => part.trim())
+        .filter(Boolean);
+      if (parts.length > 1) {
+        candidates.push(...parts);
+      }
+    }
+  });
+
+  const picked = pickBestTitle(candidates);
+  if (!picked) {
+    return null;
+  }
+
+  const cleaned = cleanJobTitle(picked);
+  return cleaned || null;
+};
+
+const extractLastJobTitle = (resumeText: string) => {
+  const lines = normalizeResumeLines(resumeText);
+  if (lines.length === 0) {
+    return null;
+  }
+
+  const experienceIndex = lines.findIndex((line) =>
+    matchesHeader(line, EXPERIENCE_HEADERS),
+  );
+
+  let searchLines = lines;
+  if (experienceIndex >= 0) {
+    let endIndex = lines.length;
+    for (let i = experienceIndex + 1; i < lines.length; i += 1) {
+      if (
+        matchesHeader(lines[i], SECTION_HEADERS) &&
+        !matchesHeader(lines[i], EXPERIENCE_HEADERS)
+      ) {
+        endIndex = i;
+        break;
+      }
+    }
+    searchLines = lines.slice(experienceIndex + 1, endIndex);
+  }
+
+  const candidates = searchLines
+    .map((line) => extractTitleFromLine(line))
+    .filter((candidate): candidate is string => Boolean(candidate));
+
+  if (candidates.length > 0) {
+    return candidates[0];
+  }
+
+  const fallbackCandidates = lines
+    .map((line) => extractTitleFromLine(line))
+    .filter((candidate): candidate is string => Boolean(candidate));
+
+  return fallbackCandidates[0] ?? null;
 };
 
 @Injectable()
@@ -910,10 +1094,17 @@ export class JobBoardSearchClient implements JobSearchClient {
     const hasKeyword = (term: string) =>
       normalizedKeywords.some((keyword) => keywordHasTerm(keyword, term));
 
-    const shouldApplySeniority = (query: string) =>
-      Boolean(prefix) &&
-      !query.startsWith(prefix) &&
-      TITLE_TOKENS.some((token) => query.includes(token));
+    const shouldApplySeniority = (query: string) => {
+      if (!prefix) {
+        return false;
+      }
+      const normalizedQuery = query.toLowerCase();
+      const normalizedPrefix = prefix.trim().toLowerCase();
+      if (normalizedQuery.startsWith(normalizedPrefix)) {
+        return false;
+      }
+      return TITLE_TOKENS.some((token) => normalizedQuery.includes(token));
+    };
 
     const add = (query: string) => {
       const trimmed = query.trim();
@@ -965,6 +1156,13 @@ export class JobBoardSearchClient implements JobSearchClient {
     const uniqueSkillHints = Array.from(new Set(skillHints)).slice(0, 2);
     if (primaryQuery && uniqueSkillHints.length > 0) {
       add(`${primaryQuery} ${uniqueSkillHints.join(' ')}`);
+    }
+
+    if (queries.size === 0) {
+      const lastJobTitle = extractLastJobTitle(resumeText);
+      if (lastJobTitle) {
+        add(lastJobTitle);
+      }
     }
 
     if (queries.size === 0) {
