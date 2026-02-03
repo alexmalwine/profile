@@ -104,6 +104,7 @@ export class ChatGptJobRanker implements JobRanker {
       title: job.title,
       location: job.location,
       source: job.source,
+      companySize: job.companySize ?? null,
       keywords: job.keywords.slice(0, 6),
     }));
 
@@ -122,8 +123,11 @@ export class ChatGptJobRanker implements JobRanker {
             'Return JSON with a rankings array. Each ranking must include: ' +
             'id (from the list), matchScore (0-100), companySize ' +
             '(large|mid|startup), and companyHint (<=15 words, no company name). ' +
-            'Do not add or remove jobs. Do not fabricate URLs. ' +
-            'If unsure about companySize or companyHint, set them to null.\n\n' +
+            'Make companyHint specific using ONLY the provided fields (size, ' +
+            'industry signals, location, or focus keywords). Do not invent ' +
+            'external facts or news. Do not add or remove jobs. Do not ' +
+            'fabricate URLs. If unsure about companySize or companyHint, set ' +
+            'them to null.\n\n' +
             `Resume:\n${trimmedResume}\n\n` +
             `Jobs:\n${JSON.stringify(jobPayload)}`,
         },

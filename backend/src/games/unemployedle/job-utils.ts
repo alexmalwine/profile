@@ -189,14 +189,338 @@ export const normalizeCompanyHint = (value: unknown, company: string) => {
   return truncateHint(sanitized);
 };
 
-const buildFallbackHint = (title: string, keywords: string[]) => {
+const GENERIC_HINT_KEYWORDS = new Set([
+  'software',
+  'engineering',
+  'developer',
+  'development',
+  'web',
+  'frontend',
+  'backend',
+  'fullstack',
+  'full stack',
+  'mobile',
+  'data',
+  'data analysis',
+  'data analytics',
+  'analytics',
+  'analysis',
+  'management',
+  'manager',
+  'project management',
+  'product management',
+  'program management',
+  'sales',
+  'marketing',
+  'design',
+  'operations',
+  'cloud',
+  'security',
+  'testing',
+  'performance',
+  'reporting',
+  'database',
+]);
+
+const INDUSTRY_HINT_RULES = [
+  {
+    label: 'healthcare',
+    keywords: [
+      'healthcare',
+      'clinical',
+      'patient care',
+      'nursing',
+      'medical',
+      'hospital',
+      'pharmacy',
+      'biotech',
+      'pharmaceutical',
+      'public health',
+      'ehr',
+      'emr',
+      'hipaa',
+    ],
+  },
+  {
+    label: 'finance',
+    keywords: [
+      'finance',
+      'financial analysis',
+      'financial modeling',
+      'accounting',
+      'audit',
+      'tax',
+      'treasury',
+      'investments',
+      'portfolio management',
+      'risk management',
+      'insurance',
+      'underwriting',
+      'claims',
+      'actuarial',
+    ],
+  },
+  {
+    label: 'education',
+    keywords: [
+      'education',
+      'teaching',
+      'teacher',
+      'curriculum',
+      'instruction',
+      'lesson planning',
+      'student',
+      'higher education',
+      'k-12',
+      'instructional design',
+      'lms',
+      'edtech',
+    ],
+  },
+  {
+    label: 'marketing',
+    keywords: [
+      'marketing',
+      'digital marketing',
+      'content marketing',
+      'growth marketing',
+      'performance marketing',
+      'brand',
+      'seo',
+      'sem',
+      'ppc',
+      'paid search',
+      'paid social',
+      'email marketing',
+      'marketing automation',
+      'demand generation',
+      'lead generation',
+      'campaign management',
+      'google analytics',
+      'google ads',
+    ],
+  },
+  {
+    label: 'sales & revenue',
+    keywords: [
+      'sales',
+      'business development',
+      'account executive',
+      'account management',
+      'customer success',
+      'crm',
+      'salesforce',
+      'pipeline management',
+      'sales operations',
+      'revenue operations',
+      'renewals',
+      'upsell',
+      'cross-sell',
+    ],
+  },
+  {
+    label: 'operations & logistics',
+    keywords: [
+      'operations',
+      'supply chain',
+      'logistics',
+      'procurement',
+      'inventory',
+      'warehouse',
+      'fulfillment',
+      'shipping',
+      'transportation',
+      'demand planning',
+      'capacity planning',
+      'quality management',
+      'lean',
+      'six sigma',
+    ],
+  },
+  {
+    label: 'energy & sustainability',
+    keywords: [
+      'energy',
+      'renewable energy',
+      'utilities',
+      'oil and gas',
+      'sustainability',
+      'environmental',
+    ],
+  },
+  {
+    label: 'public sector',
+    keywords: ['government', 'public sector', 'policy', 'regulatory'],
+  },
+  {
+    label: 'nonprofit',
+    keywords: [
+      'nonprofit',
+      'grant writing',
+      'fundraising',
+      'community outreach',
+      'program evaluation',
+    ],
+  },
+  {
+    label: 'design & creative',
+    keywords: [
+      'design',
+      'graphic design',
+      'visual design',
+      'product design',
+      'user experience',
+      'user interface',
+      'ux research',
+      'user research',
+      'interaction design',
+      'figma',
+      'adobe',
+      'photoshop',
+      'illustrator',
+      'indesign',
+      'motion design',
+      'video editing',
+    ],
+  },
+  {
+    label: 'data & analytics',
+    keywords: [
+      'data engineering',
+      'data analysis',
+      'data analytics',
+      'data science',
+      'data scientist',
+      'business intelligence',
+      'analytics',
+      'etl',
+      'data warehouse',
+      'bigquery',
+      'snowflake',
+      'statistics',
+      'machine learning',
+    ],
+  },
+  {
+    label: 'cloud infrastructure',
+    keywords: [
+      'cloud',
+      'aws',
+      'gcp',
+      'azure',
+      'devops',
+      'sre',
+      'site reliability',
+      'docker',
+      'kubernetes',
+      'terraform',
+      'ansible',
+    ],
+  },
+  {
+    label: 'security & compliance',
+    keywords: [
+      'security',
+      'cybersecurity',
+      'privacy',
+      'gdpr',
+      'compliance',
+      'risk management',
+    ],
+  },
+];
+
+const capitalizeSentence = (value: string) =>
+  value.length === 0 ? value : `${value[0].toUpperCase()}${value.slice(1)}`;
+
+const getCompanyScaleHint = (
+  source: JobSource,
+  companySize?: CompanySize,
+) => {
+  if (source === 'Fortune 500') {
+    return 'Fortune 500 employer';
+  }
+  if (companySize === 'large') {
+    return 'Large enterprise';
+  }
+  if (companySize === 'startup') {
+    return 'Early-stage startup';
+  }
+  if (companySize === 'mid') {
+    return 'Mid-sized company';
+  }
+  return null;
+};
+
+const findIndustryHint = (keywords: string[]) => {
+  const normalized = keywords.map((keyword) => keyword.toLowerCase());
+  const scored = INDUSTRY_HINT_RULES.map((rule, index) => ({
+    rule,
+    index,
+    score: rule.keywords.reduce(
+      (total, keyword) => total + (normalized.includes(keyword) ? 1 : 0),
+      0,
+    ),
+  }))
+    .filter((entry) => entry.score > 0)
+    .sort((a, b) => b.score - a.score || a.index - b.index);
+
+  return scored[0]?.rule.label ?? null;
+};
+
+const selectFocusKeywords = (keywords: string[]) => {
+  const normalized = keywords.map((keyword) => keyword.toLowerCase().trim());
+  const unique = Array.from(new Set(normalized)).filter(Boolean);
+  const prioritized = unique.filter(
+    (keyword) => keyword.includes(' ') && !GENERIC_HINT_KEYWORDS.has(keyword),
+  );
+  const fallback = unique.filter(
+    (keyword) => !GENERIC_HINT_KEYWORDS.has(keyword),
+  );
+  return Array.from(new Set([...prioritized, ...fallback])).slice(0, 2);
+};
+
+const getLocationHint = (location: string) => {
+  const normalized = location.toLowerCase();
+  if (normalized.includes('remote')) {
+    return { type: 'remote' as const };
+  }
+  if (location.length <= 40) {
+    return { type: 'onsite' as const, label: location };
+  }
+  return null;
+};
+
+const buildFallbackHint = (
+  title: string,
+  keywords: string[],
+  source: JobSource,
+  location: string,
+  companySize?: CompanySize,
+) => {
   const trimmedTitle = title.trim();
-  const hint =
-    keywords.length > 0
-      ? `This company hires for ${trimmedTitle} roles focused on ${keywords
-          .slice(0, 3)
-          .join(', ')}.`
-      : `This company is hiring for a ${trimmedTitle} role.`;
+  const focusKeywords = selectFocusKeywords(keywords);
+  const scaleHint = getCompanyScaleHint(source, companySize);
+  const industryHint = findIndustryHint(keywords);
+  const locationHint = getLocationHint(location);
+
+  const leadParts = [scaleHint, industryHint ? `in ${industryHint}` : null].filter(
+    Boolean,
+  );
+  const lead = leadParts.length > 0 ? leadParts.join(' ') : 'This team';
+  let hint = `${capitalizeSentence(lead)} is hiring a ${trimmedTitle} role`;
+
+  if (locationHint?.type === 'remote') {
+    hint += ' with remote-friendly work';
+  } else if (locationHint?.type === 'onsite') {
+    hint += ` based in ${locationHint.label}`;
+  }
+
+  if (focusKeywords.length > 0) {
+    hint += ` focused on ${focusKeywords.join(', ')}`;
+  }
+
+  hint += '.';
 
   return truncateHint(hint);
 };
@@ -529,10 +853,14 @@ export const normalizeJobResults = (jobs: JobSearchJob[]) => {
       providedKeywords.length > 0
         ? providedKeywords
         : extractKeywordsFromText(`${title} ${company} ${location}`);
+    const companySizeValue = toNonEmptyString(job.companySize);
+    const companySize = companySizeValue
+      ? normalizeCompanySize(companySizeValue)
+      : undefined;
     const hintKeywords = filterKeywordsForHint(keywords, company);
     const companyHint =
       normalizeCompanyHint(job.companyHint, company) ??
-      buildFallbackHint(title, hintKeywords);
+      buildFallbackHint(title, hintKeywords, source, location, companySize);
     const { companyUrl, sourceUrl, url } = resolveJobUrls(
       job,
       source,
@@ -544,8 +872,6 @@ export const normalizeJobResults = (jobs: JobSearchJob[]) => {
     const id = buildJobId(company, title, location, url);
     const companyKey = normalizeCompanyKey(company);
     const key = `${companyKey}|${title.toLowerCase()}|${location.toLowerCase()}`;
-    const companySize = normalizeCompanySize(job.companySize);
-
     if (seen.has(key)) {
       return;
     }
