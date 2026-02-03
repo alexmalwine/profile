@@ -23,6 +23,16 @@ npm run dev
 
 The frontend dev server proxies `/api` requests to `http://localhost:3000`.
 
+## Docker
+Build and run the full stack (frontend assets served by NestJS):
+```bash
+docker build -t profile-app .
+docker run --rm -p 3000:3000 \
+  -e OPENAI_API_KEY=your_key \
+  -e SERPAPI_API_KEY=your_key \
+  profile-app
+```
+
 ## Customizing content
 - Update placeholder text in `frontend/src/App.jsx`.
 - Edit metadata in `frontend/index.html`.
