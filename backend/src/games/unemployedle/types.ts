@@ -109,6 +109,18 @@ export interface JobSearchClient {
   searchJobs(resumeText: string): Promise<JobSearchResult>;
 }
 
+export interface JobRanking {
+  id: string;
+  matchScore?: number;
+  companySize?: CompanySize;
+  companyHint?: string;
+  rationale?: string;
+}
+
+export interface JobRanker {
+  rankJobs(resumeText: string, jobs: JobOpening[]): Promise<JobRanking[]>;
+}
+
 export interface CachedJobSearch {
   result: JobSearchResult;
   createdAt: number;

@@ -143,7 +143,7 @@ const COMPANY_SUFFIXES = new Set([
 const truncateHint = (value: string) =>
   value.length > MAX_HINT_CHARS ? value.slice(0, MAX_HINT_CHARS).trim() : value;
 
-const normalizeCompanyHint = (value: unknown, company: string) => {
+export const normalizeCompanyHint = (value: unknown, company: string) => {
   const hint = toNonEmptyString(value);
   if (!hint) {
     return null;
@@ -195,7 +195,7 @@ export const normalizeCompanyKey = (company: string) => {
   return tokens.length > 0 ? tokens.join(' ') : normalized;
 };
 
-const normalizeCompanySize = (value: unknown): CompanySize => {
+export const normalizeCompanySize = (value: unknown): CompanySize => {
   const normalized = String(value ?? '').toLowerCase();
 
   if (

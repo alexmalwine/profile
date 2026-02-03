@@ -37,6 +37,10 @@ The frontend dev server proxies `/api` requests to `http://localhost:3000`.
 - `GET /api/tools/resume-formatter/formats` returns available formats.
 - `POST /api/tools/resume-formatter/format` formats a resume upload.
 
+### Required environment variables
+- `OPENAI_API_KEY`: used to rank verified job results.
+- `SERPAPI_API_KEY`: used to search job boards and company career sites.
+
 ## Games
 The Unemployedle game lets a user upload a resume and play a hangman-style round
 to reveal a company name for a curated job opening. Job sourcing and LLM

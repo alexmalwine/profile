@@ -12,7 +12,8 @@ import {
   CACHE_TTL_MS,
   MAX_GUESSES,
 } from './unemployedle/constants';
-import { ChatGptJobSearchClient } from './unemployedle/job-search.client';
+import { JobBoardSearchClient } from './unemployedle/job-search.client';
+import { ChatGptJobRanker } from './unemployedle/job-ranker.client';
 import {
   buildJobId,
   buildSelectionSummary,
@@ -21,7 +22,10 @@ import {
   extractResumeKeywords,
   maskCompanyName,
   normalizeCompanyKey,
+  normalizeCompanyHint,
+  normalizeCompanySize,
   normalizeJobResults,
+  normalizeMatchScore,
   sanitizeLetter,
 } from './unemployedle/job-utils';
 import {
@@ -30,9 +34,10 @@ import {
   type GameState,
   type GuessResponse,
   type JobOpening,
+  type JobRanker,
+  type JobRanking,
   type StartResponse,
   type TopJobsResponse,
-  type JobSearchClient,
 } from './unemployedle/types';
 
 @Injectable()
@@ -62,7 +67,10 @@ export class UnemployedleService {
     /job posting is no longer available/i,
   ];
 
-  constructor(private readonly jobSearchClient: ChatGptJobSearchClient) {}
+  constructor(
+    private readonly jobSearchClient: JobBoardSearchClient,
+    private readonly jobRanker: ChatGptJobRanker,
+  ) {}
 
   async startGame(resumeText: string): Promise<StartResponse> {
     const { rankedJobs, searchResult } = await this.rankJobs(resumeText);
@@ -190,7 +198,17 @@ export class UnemployedleService {
       throw new ServiceUnavailableException('No verified job matches found.');
     }
 
-    const rankedJobs = verifiedJobs
+    let rankedCandidates = verifiedJobs;
+    try {
+      const rankings = await this.jobRanker.rankJobs(resumeText, verifiedJobs);
+      rankedCandidates = this.applyRankings(verifiedJobs, rankings);
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : 'Unknown error';
+      this.logger.warn(`ChatGPT job ranking failed. ${message}`);
+    }
+
+    const rankedJobs = rankedCandidates
       .map((job) => {
         const matchScore =
           typeof job.matchScoreHint === 'number'
@@ -245,6 +263,41 @@ export class UnemployedleService {
       return undefined;
     }
     return game.job.companyHint;
+  }
+
+  private applyRankings(jobs: JobOpening[], rankings: JobRanking[]) {
+    if (!rankings || rankings.length === 0) {
+      return jobs;
+    }
+
+    const rankingMap = new Map<string, JobRanking>();
+    rankings.forEach((ranking) => {
+      if (ranking?.id) {
+        rankingMap.set(ranking.id, ranking);
+      }
+    });
+
+    return jobs.map((job) => {
+      const ranking = rankingMap.get(job.id);
+      if (!ranking) {
+        return job;
+      }
+
+      const matchScoreHint = normalizeMatchScore(ranking.matchScore);
+      const companyHint =
+        normalizeCompanyHint(ranking.companyHint, job.company) ??
+        job.companyHint;
+      const companySize = ranking.companySize
+        ? normalizeCompanySize(ranking.companySize)
+        : job.companySize;
+
+      return {
+        ...job,
+        matchScoreHint: matchScoreHint ?? job.matchScoreHint,
+        companyHint,
+        companySize,
+      };
+    });
   }
 
   private async gatherVerifiedJobs(resumeText: string) {

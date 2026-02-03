@@ -15,6 +15,37 @@ export const OPENAI_MAX_TOKENS = parsePositiveNumber(
   process.env.OPENAI_MAX_TOKENS,
   1800,
 );
+export const OPENAI_RANKING_MAX_TOKENS = parsePositiveNumber(
+  process.env.OPENAI_RANKING_MAX_TOKENS,
+  900,
+);
+export const SERPAPI_API_URL =
+  process.env.SERPAPI_API_URL ?? 'https://serpapi.com/search.json';
+export const SERPAPI_API_KEY = process.env.SERPAPI_API_KEY ?? '';
+export const JOB_BOARD_SEARCH_TIMEOUT_MS = parsePositiveNumber(
+  process.env.JOB_BOARD_SEARCH_TIMEOUT_MS,
+  8000,
+);
+export const JOB_BOARD_MAX_RESULTS_PER_QUERY = parsePositiveNumber(
+  process.env.JOB_BOARD_MAX_RESULTS_PER_QUERY,
+  10,
+);
+export const JOB_BOARD_MAX_GOOGLE_JOBS_QUERIES = parsePositiveNumber(
+  process.env.JOB_BOARD_MAX_GOOGLE_JOBS_QUERIES,
+  6,
+);
+export const JOB_BOARD_MAX_BOARD_QUERIES = parsePositiveNumber(
+  process.env.JOB_BOARD_MAX_BOARD_QUERIES,
+  3,
+);
+export const JOB_BOARD_MAX_FORTUNE_QUERIES = parsePositiveNumber(
+  process.env.JOB_BOARD_MAX_FORTUNE_QUERIES,
+  2,
+);
+export const JOB_BOARD_MAX_TOTAL_RESULTS = parsePositiveNumber(
+  process.env.JOB_BOARD_MAX_TOTAL_RESULTS,
+  80,
+);
 export const COMPANY_SIZE_LIMITS = {
   large: 4,
   mid: 4,
