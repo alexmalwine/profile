@@ -16,9 +16,7 @@ const GamesSection = ({ apiStatus, apiStatusLabel }) => {
     jobsError,
     isListing,
     topJobsSummary,
-    topJobsPage,
-    topJobsTotalPages,
-    topJobsTotalResults,
+    topJobsVisibleCount,
     desiredJobTitle,
     setDesiredJobTitle,
     locationPreferences,
@@ -26,17 +24,20 @@ const GamesSection = ({ apiStatus, apiStatusLabel }) => {
     handleResumeChange,
     handleStartGame,
     handleFetchTopJobs,
+    handleShowMoreJobs,
     handleGuess,
     handleResetGame,
   } = useUnemployedleGame()
   const isGenerating = isStarting || isListing
   const isShowingTopJobs = isListing || topJobs.length > 0
   const canRunJobs = Boolean(resumeFile) && !isGenerating
-  const totalJobCount = topJobsTotalResults || topJobs.length
+  const totalJobCount = topJobs.length
   const topJobsLabel =
     totalJobCount > 0
       ? `Top job matches (${totalJobCount})`
       : 'Top job matches'
+  const visibleTopJobs = topJobs.slice(0, topJobsVisibleCount)
+  const canShowMoreJobs = visibleTopJobs.length < topJobs.length
   const generationLabel = isStarting
     ? 'Generating your game'
     : isListing
@@ -172,10 +173,10 @@ const GamesSection = ({ apiStatus, apiStatusLabel }) => {
                   {!isListing && topJobsSummary && (
                     <p className="note">{topJobsSummary}</p>
                   )}
-                  {!isListing && topJobs.length > 0 && (
+                  {!isListing && visibleTopJobs.length > 0 && (
                     <>
                       <div className="job-list expanded">
-                        {topJobs.map((job) => (
+                        {visibleTopJobs.map((job) => (
                           <div key={job.id} className="job-list-item">
                             <div>
                               <p className="job-title">{job.title}</p>
@@ -197,29 +198,19 @@ const GamesSection = ({ apiStatus, apiStatusLabel }) => {
                           </div>
                         ))}
                       </div>
-                      {topJobsTotalPages > 1 && (
+                      {canShowMoreJobs && (
                         <div className="pagination-controls">
                           <button
                             type="button"
                             className="button ghost small"
-                            onClick={() => handleFetchTopJobs(topJobsPage - 1)}
-                            disabled={isGenerating || topJobsPage <= 1}
+                            onClick={handleShowMoreJobs}
+                            disabled={isGenerating}
                           >
-                            Previous
+                            Show more jobs
                           </button>
                           <span className="pagination-status">
-                            Page {topJobsPage} of {topJobsTotalPages}
+                            Showing {visibleTopJobs.length} of {topJobs.length}
                           </span>
-                          <button
-                            type="button"
-                            className="button ghost small"
-                            onClick={() => handleFetchTopJobs(topJobsPage + 1)}
-                            disabled={
-                              isGenerating || topJobsPage >= topJobsTotalPages
-                            }
-                          >
-                            Next
-                          </button>
                         </div>
                       )}
                     </>

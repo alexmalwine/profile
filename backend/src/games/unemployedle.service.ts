@@ -39,18 +39,28 @@ import {
   type JobRanker,
   type JobRanking,
   type JobSearchOptions,
+  type JobSearchResult,
   type StartResponse,
   type TopJobsResponse,
 } from './unemployedle/types';
 
 const DEFAULT_TOP_JOBS_COUNT = 10;
-const DEFAULT_TOP_JOBS_PAGE_SIZE = 5;
 const MAX_TOP_JOBS_RESULTS = 30;
+const MIN_TOP_JOBS_MATCH_SCORE = 0.3;
+const DEFAULT_MATCH_THRESHOLDS = [0.75, 0.7, 0.65, 0.6];
+const EXPANDED_MATCH_THRESHOLDS = [MIN_TOP_JOBS_MATCH_SCORE];
+
+type CachedTopJobs = {
+  rankedJobs: GameState['job'][];
+  searchResult: JobSearchResult;
+  createdAt: number;
+};
 
 @Injectable()
 export class UnemployedleService {
   private readonly games = new Map<string, GameState>();
   private readonly searchCache = new Map<string, CachedJobSearch>();
+  private readonly topJobsCache = new Map<string, CachedTopJobs>();
   private readonly logger = new Logger(UnemployedleService.name);
   private readonly jobUrlTimeoutMs = 4000;
   private readonly jobUrlUserAgent =
@@ -123,39 +133,34 @@ export class UnemployedleService {
     resumeText: string,
     options?: JobSearchOptions,
   ): Promise<TopJobsResponse> {
-    const pagination = this.resolvePagination(options, true);
-    const { rankedJobs, searchResult } = await this.rankJobs(resumeText, {
-      ...options,
-      page: pagination.page,
-      pageSize: pagination.pageSize,
-    });
-    const totalResults = rankedJobs.length;
-    const totalPages =
-      totalResults > 0
-        ? Math.ceil(totalResults / pagination.pageSize)
-        : 1;
-    const page = Math.min(Math.max(1, pagination.page), totalPages);
-    const startIndex = (page - 1) * pagination.pageSize;
-    const endIndex = Math.min(
-      startIndex + pagination.pageSize,
-      totalResults,
-    );
-    const pagedJobs = rankedJobs.slice(startIndex, endIndex);
-    const matchCount = pagedJobs.length;
+    const resolvedOptions = this.resolveSearchOptions(resumeText, options);
+    const cacheKey = this.buildTopJobsCacheKey(resumeText, resolvedOptions);
+    const cached = this.getCachedTopJobs(cacheKey);
+    const { rankedJobs, searchResult } =
+      cached ??
+      (await this.rankJobs(resumeText, resolvedOptions, {
+        thresholds: EXPANDED_MATCH_THRESHOLDS,
+        desiredCount: MAX_TOP_JOBS_RESULTS,
+      }));
+    if (!cached) {
+      this.topJobsCache.set(cacheKey, {
+        rankedJobs,
+        searchResult,
+        createdAt: Date.now(),
+      });
+      this.cleanupTopJobsCache();
+    }
+    const matchCount = rankedJobs.length;
     const resultSuffix =
-      totalResults > 0
-        ? `Showing matches ${startIndex + 1}-${endIndex} of ${totalResults}.`
+      matchCount > 0
+        ? `Showing ${matchCount} match${matchCount === 1 ? '' : 'es'}.`
         : 'No matches found.';
     return {
       selectionSummary: buildSelectionSummary(
         searchResult,
         resultSuffix,
       ),
-      page,
-      pageSize: pagination.pageSize,
-      totalResults,
-      totalPages,
-      jobs: pagedJobs.map((job) => ({
+      jobs: rankedJobs.map((job) => ({
         id: job.id,
         company: job.company,
         title: job.title,
@@ -232,14 +237,16 @@ export class UnemployedleService {
     return 'in_progress' as const;
   }
 
-  private async rankJobs(resumeText: string, options?: JobSearchOptions) {
+  private async rankJobs(
+    resumeText: string,
+    options?: JobSearchOptions,
+    config: { thresholds?: number[]; desiredCount?: number } = {},
+  ) {
     const resumeProfile = buildResumeProfile(resumeText);
     const resolvedOptions = this.resolveSearchOptions(resumeText, options);
     const desiredJobTitle = toNonEmptyString(resolvedOptions.desiredJobTitle);
-    const pagination = this.resolvePagination(resolvedOptions);
-    const desiredCount = pagination.enabled
-      ? MAX_TOP_JOBS_RESULTS
-      : DEFAULT_TOP_JOBS_COUNT;
+    const desiredCount = config.desiredCount ?? DEFAULT_TOP_JOBS_COUNT;
+    const thresholds = config.thresholds ?? DEFAULT_MATCH_THRESHOLDS;
     const { verifiedJobs, searchResult } = await this.gatherVerifiedJobs(
       resumeText,
       resolvedOptions,
@@ -281,7 +288,11 @@ export class UnemployedleService {
       })
       .sort((a, b) => b.overallScore - a.overallScore);
 
-    const thresholdedJobs = this.applyMatchThreshold(rankedJobs, desiredCount);
+    const thresholdedJobs = this.applyMatchThreshold(
+      rankedJobs,
+      thresholds,
+      desiredCount,
+    );
     const diversifiedJobs = this.applyCompanyDiversity(
       thresholdedJobs,
       desiredCount,
@@ -297,9 +308,9 @@ export class UnemployedleService {
 
   private applyMatchThreshold(
     jobs: GameState['job'][],
+    thresholds: number[],
     desiredCount = DEFAULT_TOP_JOBS_COUNT,
   ) {
-    const thresholds = [0.75, 0.7, 0.65, 0.6];
     let filtered: GameState['job'][] = [];
 
     thresholds.forEach((threshold) => {
@@ -899,8 +910,6 @@ export class UnemployedleService {
     const includeLocal = Boolean(options.includeLocal);
     const specificLocation = toNonEmptyString(options.specificLocation);
     const desiredJobTitle = toNonEmptyString(options.desiredJobTitle);
-    const page = typeof options.page === 'number' ? options.page : null;
-    const pageSize = typeof options.pageSize === 'number' ? options.pageSize : null;
     const localLocation = includeLocal
       ? toNonEmptyString(options.localLocation) ??
         extractResumeLocation(resumeText)
@@ -912,8 +921,6 @@ export class UnemployedleService {
         includeLocal: true,
         localLocation,
         desiredJobTitle,
-        page,
-        pageSize,
       };
     }
 
@@ -923,31 +930,28 @@ export class UnemployedleService {
       specificLocation,
       localLocation,
       desiredJobTitle,
-      page,
-      pageSize,
     };
   }
 
-  private resolvePagination(
-    options?: JobSearchOptions,
-    enableByDefault = false,
+  private buildTopJobsCacheKey(
+    resumeText: string,
+    options: JobSearchOptions,
   ) {
-    const hasPagination =
-      enableByDefault || Boolean(options?.page) || Boolean(options?.pageSize);
-    const rawPage = options?.page ?? 1;
-    const rawPageSize = options?.pageSize ?? DEFAULT_TOP_JOBS_PAGE_SIZE;
-    const page = Math.max(1, Math.floor(rawPage));
-    const pageSize = clampNumber(
-      Math.floor(rawPageSize),
-      1,
-      DEFAULT_TOP_JOBS_COUNT,
-    );
+    return createHash('sha256')
+      .update(`${resumeText}|${JSON.stringify(options ?? {})}`)
+      .digest('hex');
+  }
 
-    return {
-      enabled: hasPagination,
-      page,
-      pageSize,
-    };
+  private getCachedTopJobs(cacheKey: string) {
+    const cached = this.topJobsCache.get(cacheKey);
+    if (!cached) {
+      return null;
+    }
+    if (Date.now() - cached.createdAt < CACHE_TTL_MS) {
+      return cached;
+    }
+    this.topJobsCache.delete(cacheKey);
+    return null;
   }
 
   private cleanupSearchCache() {
@@ -963,6 +967,23 @@ export class UnemployedleService {
       const oldest = entries.shift();
       if (oldest) {
         this.searchCache.delete(oldest[0]);
+      }
+    }
+  }
+
+  private cleanupTopJobsCache() {
+    if (this.topJobsCache.size <= CACHE_MAX_ENTRIES) {
+      return;
+    }
+
+    const entries = Array.from(this.topJobsCache.entries()).sort(
+      (a, b) => a[1].createdAt - b[1].createdAt,
+    );
+
+    while (this.topJobsCache.size > CACHE_MAX_ENTRIES && entries.length > 0) {
+      const oldest = entries.shift();
+      if (oldest) {
+        this.topJobsCache.delete(oldest[0]);
       }
     }
   }

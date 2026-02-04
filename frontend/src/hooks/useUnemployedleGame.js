@@ -1,6 +1,6 @@
 import { useState } from 'react'
 
-const DEFAULT_TOP_JOBS_PAGE_SIZE = 5
+const DEFAULT_TOP_JOBS_VISIBLE_COUNT = 5
 
 export const useUnemployedleGame = () => {
   const [resumeFile, setResumeFile] = useState(null)
@@ -14,12 +14,9 @@ export const useUnemployedleGame = () => {
   const [jobsError, setJobsError] = useState('')
   const [isListing, setIsListing] = useState(false)
   const [topJobsSummary, setTopJobsSummary] = useState('')
-  const [topJobsPage, setTopJobsPage] = useState(1)
-  const [topJobsPageSize, setTopJobsPageSize] = useState(
-    DEFAULT_TOP_JOBS_PAGE_SIZE,
+  const [topJobsVisibleCount, setTopJobsVisibleCount] = useState(
+    DEFAULT_TOP_JOBS_VISIBLE_COUNT,
   )
-  const [topJobsTotalPages, setTopJobsTotalPages] = useState(1)
-  const [topJobsTotalResults, setTopJobsTotalResults] = useState(0)
   const [desiredJobTitle, setDesiredJobTitle] = useState('')
   const [locationPreferences, setLocationPreferences] = useState({
     includeRemote: true,
@@ -91,9 +88,7 @@ export const useUnemployedleGame = () => {
       setGuessedLetters(payload.guessedLetters ?? [])
       setTopJobs([])
       setTopJobsSummary('')
-      setTopJobsPage(1)
-      setTopJobsTotalPages(1)
-      setTopJobsTotalResults(0)
+      setTopJobsVisibleCount(DEFAULT_TOP_JOBS_VISIBLE_COUNT)
     } catch (error) {
       const message =
         error instanceof Error ? error.message : 'Unable to start the game.'
@@ -103,7 +98,7 @@ export const useUnemployedleGame = () => {
     }
   }
 
-  const handleFetchTopJobs = async (page = 1) => {
+  const handleFetchTopJobs = async () => {
     if (!resumeFile) {
       setJobsError('Please upload your resume to see the top jobs.')
       return
@@ -124,8 +119,6 @@ export const useUnemployedleGame = () => {
     try {
       const formData = new FormData()
       formData.append('resume', resumeFile)
-      formData.append('page', String(page))
-      formData.append('pageSize', String(topJobsPageSize))
       formData.append(
         'includeRemote',
         locationPreferences.includeRemote ? 'true' : 'false',
@@ -161,10 +154,7 @@ export const useUnemployedleGame = () => {
       const payload = await response.json()
       setTopJobs(payload.jobs ?? [])
       setTopJobsSummary(payload.selectionSummary ?? '')
-      setTopJobsPage(payload.page ?? page)
-      setTopJobsPageSize(payload.pageSize ?? topJobsPageSize)
-      setTopJobsTotalPages(payload.totalPages ?? 1)
-      setTopJobsTotalResults(payload.totalResults ?? 0)
+      setTopJobsVisibleCount(DEFAULT_TOP_JOBS_VISIBLE_COUNT)
       setGameState(null)
       setGuessedLetters([])
     } catch (error) {
@@ -227,10 +217,7 @@ export const useUnemployedleGame = () => {
     setTopJobs([])
     setJobsError('')
     setTopJobsSummary('')
-    setTopJobsPage(1)
-    setTopJobsPageSize(DEFAULT_TOP_JOBS_PAGE_SIZE)
-    setTopJobsTotalPages(1)
-    setTopJobsTotalResults(0)
+    setTopJobsVisibleCount(DEFAULT_TOP_JOBS_VISIBLE_COUNT)
     setDesiredJobTitle('')
     setLocationPreferences({
       includeRemote: true,
@@ -238,6 +225,12 @@ export const useUnemployedleGame = () => {
       includeSpecific: false,
       specificLocation: '',
     })
+  }
+
+  const handleShowMoreJobs = () => {
+    setTopJobsVisibleCount((previous) =>
+      Math.min(previous + DEFAULT_TOP_JOBS_VISIBLE_COUNT, topJobs.length),
+    )
   }
 
   return {
@@ -252,10 +245,7 @@ export const useUnemployedleGame = () => {
     jobsError,
     isListing,
     topJobsSummary,
-    topJobsPage,
-    topJobsPageSize,
-    topJobsTotalPages,
-    topJobsTotalResults,
+    topJobsVisibleCount,
     desiredJobTitle,
     setDesiredJobTitle,
     locationPreferences,
@@ -263,6 +253,7 @@ export const useUnemployedleGame = () => {
     handleResumeChange,
     handleStartGame,
     handleFetchTopJobs,
+    handleShowMoreJobs,
     handleGuess,
     handleResetGame,
   }
