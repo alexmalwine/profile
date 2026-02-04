@@ -793,6 +793,14 @@ main {
   display: flex;
   flex-wrap: wrap;
   gap: 0.5rem;
+  align-items: center;
+}
+
+.job-badges .pill {
+  display: inline-flex;
+  align-items: center;
+  line-height: 1.1;
+  white-space: nowrap;
 }
 
 .job-panel-header {
