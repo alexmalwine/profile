@@ -14,6 +14,9 @@
   --primary: #6366f1;
   --primary-strong: #4f46e5;
   --accent: #22d3ee;
+  --loading: #fbbf24;
+  --loading-bg: rgba(251, 191, 36, 0.15);
+  --loading-border: rgba(251, 191, 36, 0.45);
   --border: #1f2a3b;
   --shadow: 0 20px 40px rgba(0, 0, 0, 0.35);
   --radius: 16px;
@@ -497,8 +500,8 @@ main {
 }
 
 .game-card.is-loading {
-  border-color: rgba(251, 191, 36, 0.6);
-  box-shadow: 0 0 0 1px rgba(251, 191, 36, 0.4), var(--shadow);
+  border-color: var(--loading-border);
+  box-shadow: 0 0 0 1px var(--loading-border), var(--shadow);
 }
 
 .game-card.placeholder {
@@ -528,8 +531,8 @@ main {
   padding: 1rem 1.25rem;
   margin-top: 1.5rem;
   border-radius: 14px;
-  border: 1px dashed rgba(251, 191, 36, 0.5);
-  background: rgba(251, 191, 36, 0.1);
+  border: 1px dashed var(--loading-border);
+  background: var(--loading-bg);
 }
 
 .loading-banner.compact {
@@ -540,8 +543,8 @@ main {
   width: 34px;
   height: 34px;
   border-radius: 50%;
-  border: 3px solid rgba(251, 191, 36, 0.35);
-  border-top-color: #fbbf24;
+  border: 3px solid var(--loading-border);
+  border-top-color: var(--loading);
   animation: spin 1s linear infinite;
   flex-shrink: 0;
 }
@@ -599,9 +602,9 @@ main {
 }
 
 .status-badge.loading {
-  color: #fbbf24;
-  background: rgba(251, 191, 36, 0.15);
-  border-color: rgba(251, 191, 36, 0.4);
+  color: var(--loading);
+  background: var(--loading-bg);
+  border-color: var(--loading-border);
 }
 
 .status-badge.in_progress {
@@ -791,9 +794,9 @@ main {
   font-size: 0.75rem;
   padding: 0.25rem 0.6rem;
   border-radius: 999px;
-  border: 1px solid rgba(251, 191, 36, 0.4);
-  background: rgba(251, 191, 36, 0.15);
-  color: #fbbf24;
+  border: 1px solid var(--loading-border);
+  background: var(--loading-bg);
+  color: var(--loading);
   font-weight: 600;
   letter-spacing: 0.02em;
 }
@@ -961,6 +964,9 @@ main {
     --primary: #4f46e5;
     --primary-strong: #4338ca;
     --accent: #0891b2;
+    --loading: #b45309;
+    --loading-bg: rgba(217, 119, 6, 0.12);
+    --loading-border: rgba(217, 119, 6, 0.35);
     --border: #e2e8f0;
     --shadow: 0 20px 40px rgba(15, 23, 42, 0.12);
   }
