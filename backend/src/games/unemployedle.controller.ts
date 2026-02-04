@@ -32,6 +32,8 @@ interface JobSearchOptionsRequest {
   specificLocation?: string;
   localLocation?: string;
   desiredJobTitle?: string;
+  page?: string;
+  pageSize?: string;
 }
 
 const RESUME_SECTION_MARKERS = [
@@ -275,6 +277,8 @@ export class UnemployedleController {
         : null;
     const localLocation = body.localLocation?.trim();
     const desiredJobTitle = body.desiredJobTitle?.trim();
+    const page = this.parsePositiveInt(body.page);
+    const pageSize = this.parsePositiveInt(body.pageSize);
 
     return {
       includeRemote,
@@ -282,6 +286,8 @@ export class UnemployedleController {
       specificLocation,
       localLocation: localLocation || null,
       desiredJobTitle: desiredJobTitle || null,
+      page,
+      pageSize,
     };
   }
 
@@ -290,5 +296,13 @@ export class UnemployedleController {
       return false;
     }
     return value === 'true' || value === '1' || value === 'on';
+  }
+
+  private parsePositiveInt(value?: string) {
+    if (!value) {
+      return null;
+    }
+    const parsed = Number.parseInt(value, 10);
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
   }
 }

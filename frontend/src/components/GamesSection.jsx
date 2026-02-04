@@ -16,6 +16,9 @@ const GamesSection = ({ apiStatus, apiStatusLabel }) => {
     jobsError,
     isListing,
     topJobsSummary,
+    topJobsPage,
+    topJobsTotalPages,
+    topJobsTotalResults,
     desiredJobTitle,
     setDesiredJobTitle,
     locationPreferences,
@@ -29,8 +32,11 @@ const GamesSection = ({ apiStatus, apiStatusLabel }) => {
   const isGenerating = isStarting || isListing
   const isShowingTopJobs = isListing || topJobs.length > 0
   const canRunJobs = Boolean(resumeFile) && !isGenerating
+  const totalJobCount = topJobsTotalResults || topJobs.length
   const topJobsLabel =
-    topJobs.length > 0 ? `Top job matches (${topJobs.length})` : 'Top job matches'
+    totalJobCount > 0
+      ? `Top job matches (${totalJobCount})`
+      : 'Top job matches'
   const generationLabel = isStarting
     ? 'Generating your game'
     : isListing
@@ -167,29 +173,56 @@ const GamesSection = ({ apiStatus, apiStatusLabel }) => {
                     <p className="note">{topJobsSummary}</p>
                   )}
                   {!isListing && topJobs.length > 0 && (
-                    <div className="job-list expanded">
-                      {topJobs.map((job) => (
-                        <div key={job.id} className="job-list-item">
-                          <div>
-                            <p className="job-title">{job.title}</p>
-                            <p className="muted">
-                              {job.company} · {job.location}
-                            </p>
+                    <>
+                      <div className="job-list expanded">
+                        {topJobs.map((job) => (
+                          <div key={job.id} className="job-list-item">
+                            <div>
+                              <p className="job-title">{job.title}</p>
+                              <p className="muted">
+                                {job.company} · {job.location}
+                              </p>
+                            </div>
+                            <div className="job-badges">
+                              <span className="pill">{job.source}</span>
+                            </div>
+                            <a
+                              className="button ghost"
+                              href={job.url}
+                              target="_blank"
+                              rel="noreferrer"
+                            >
+                              View opening
+                            </a>
                           </div>
-                          <div className="job-badges">
-                            <span className="pill">{job.source}</span>
-                          </div>
-                          <a
-                            className="button ghost"
-                            href={job.url}
-                            target="_blank"
-                            rel="noreferrer"
+                        ))}
+                      </div>
+                      {topJobsTotalPages > 1 && (
+                        <div className="pagination-controls">
+                          <button
+                            type="button"
+                            className="button ghost small"
+                            onClick={() => handleFetchTopJobs(topJobsPage - 1)}
+                            disabled={isGenerating || topJobsPage <= 1}
                           >
-                            View opening
-                          </a>
+                            Previous
+                          </button>
+                          <span className="pagination-status">
+                            Page {topJobsPage} of {topJobsTotalPages}
+                          </span>
+                          <button
+                            type="button"
+                            className="button ghost small"
+                            onClick={() => handleFetchTopJobs(topJobsPage + 1)}
+                            disabled={
+                              isGenerating || topJobsPage >= topJobsTotalPages
+                            }
+                          >
+                            Next
+                          </button>
                         </div>
-                      ))}
-                    </div>
+                      )}
+                    </>
                   )}
                 </div>
               </div>

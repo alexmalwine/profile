@@ -69,6 +69,10 @@ export interface GuessResponse extends StartResponse {
 
 export interface TopJobsResponse {
   selectionSummary: string;
+  page: number;
+  pageSize: number;
+  totalResults: number;
+  totalPages: number;
   jobs: Array<{
     id: string;
     company: string;
@@ -130,6 +134,8 @@ export interface JobSearchOptions {
   specificLocation?: string | null;
   localLocation?: string | null;
   desiredJobTitle?: string | null;
+  page?: number | null;
+  pageSize?: number | null;
 }
 
 export interface CachedJobSearch {

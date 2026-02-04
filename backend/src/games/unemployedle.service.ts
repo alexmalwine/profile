@@ -43,6 +43,10 @@ import {
   type TopJobsResponse,
 } from './unemployedle/types';
 
+const DEFAULT_TOP_JOBS_COUNT = 10;
+const DEFAULT_TOP_JOBS_PAGE_SIZE = 5;
+const MAX_TOP_JOBS_RESULTS = 30;
+
 @Injectable()
 export class UnemployedleService {
   private readonly games = new Map<string, GameState>();
@@ -119,17 +123,39 @@ export class UnemployedleService {
     resumeText: string,
     options?: JobSearchOptions,
   ): Promise<TopJobsResponse> {
-    const { rankedJobs, searchResult } = await this.rankJobs(
-      resumeText,
-      options,
+    const pagination = this.resolvePagination(options, true);
+    const { rankedJobs, searchResult } = await this.rankJobs(resumeText, {
+      ...options,
+      page: pagination.page,
+      pageSize: pagination.pageSize,
+    });
+    const totalResults = rankedJobs.length;
+    const totalPages =
+      totalResults > 0
+        ? Math.ceil(totalResults / pagination.pageSize)
+        : 1;
+    const page = Math.min(Math.max(1, pagination.page), totalPages);
+    const startIndex = (page - 1) * pagination.pageSize;
+    const endIndex = Math.min(
+      startIndex + pagination.pageSize,
+      totalResults,
     );
-    const matchCount = rankedJobs.length;
+    const pagedJobs = rankedJobs.slice(startIndex, endIndex);
+    const matchCount = pagedJobs.length;
+    const resultSuffix =
+      totalResults > 0
+        ? `Showing matches ${startIndex + 1}-${endIndex} of ${totalResults}.`
+        : 'No matches found.';
     return {
       selectionSummary: buildSelectionSummary(
         searchResult,
-        `Showing the top ${matchCount} match${matchCount === 1 ? '' : 'es'}.`,
+        resultSuffix,
       ),
-      jobs: rankedJobs.map((job) => ({
+      page,
+      pageSize: pagination.pageSize,
+      totalResults,
+      totalPages,
+      jobs: pagedJobs.map((job) => ({
         id: job.id,
         company: job.company,
         title: job.title,
@@ -208,10 +234,16 @@ export class UnemployedleService {
 
   private async rankJobs(resumeText: string, options?: JobSearchOptions) {
     const resumeProfile = buildResumeProfile(resumeText);
-    const desiredJobTitle = toNonEmptyString(options?.desiredJobTitle);
+    const resolvedOptions = this.resolveSearchOptions(resumeText, options);
+    const desiredJobTitle = toNonEmptyString(resolvedOptions.desiredJobTitle);
+    const pagination = this.resolvePagination(resolvedOptions);
+    const desiredCount = pagination.enabled
+      ? MAX_TOP_JOBS_RESULTS
+      : DEFAULT_TOP_JOBS_COUNT;
     const { verifiedJobs, searchResult } = await this.gatherVerifiedJobs(
       resumeText,
-      options,
+      resolvedOptions,
+      desiredCount,
     );
 
     if (verifiedJobs.length === 0) {
@@ -249,10 +281,10 @@ export class UnemployedleService {
       })
       .sort((a, b) => b.overallScore - a.overallScore);
 
-    const thresholdedJobs = this.applyMatchThreshold(rankedJobs);
-    const diversifiedJobs = this.applyCompanyDiversity(thresholdedJobs).slice(
-      0,
-      10,
+    const thresholdedJobs = this.applyMatchThreshold(rankedJobs, desiredCount);
+    const diversifiedJobs = this.applyCompanyDiversity(
+      thresholdedJobs,
+      desiredCount,
     );
 
     if (diversifiedJobs.length === 0) {
@@ -263,9 +295,11 @@ export class UnemployedleService {
     return { rankedJobs: diversifiedJobs, searchResult };
   }
 
-  private applyMatchThreshold(jobs: GameState['job'][]) {
+  private applyMatchThreshold(
+    jobs: GameState['job'][],
+    desiredCount = DEFAULT_TOP_JOBS_COUNT,
+  ) {
     const thresholds = [0.75, 0.7, 0.65, 0.6];
-    const desiredCount = 10;
     let filtered: GameState['job'][] = [];
 
     thresholds.forEach((threshold) => {
@@ -352,10 +386,11 @@ export class UnemployedleService {
 
   private async gatherVerifiedJobs(
     resumeText: string,
-    options?: JobSearchOptions,
+    options: JobSearchOptions,
+    desiredCount: number,
   ) {
     const maxAttempts = 3;
-    const maxJobs = 20;
+    const maxJobs = Math.max(20, Math.min(MAX_TOP_JOBS_RESULTS, desiredCount));
     const collected: JobOpening[] = [];
     const seen = new Set<string>();
     let summaryResult: CachedJobSearch['result'] | null = null;
@@ -394,7 +429,7 @@ export class UnemployedleService {
       );
       collected.push(...verified);
 
-      if (collected.length >= 10) {
+      if (collected.length >= desiredCount) {
         break;
       }
     }
@@ -775,7 +810,10 @@ export class UnemployedleService {
     });
   }
 
-  private applyCompanyDiversity(jobs: GameState['job'][]) {
+  private applyCompanyDiversity(
+    jobs: GameState['job'][],
+    maxResults = DEFAULT_TOP_JOBS_COUNT,
+  ) {
     const seenCompanies = new Set<string>();
     const sizeCounts: Record<CompanySize, number> = {
       large: 0,
@@ -783,7 +821,6 @@ export class UnemployedleService {
       startup: 0,
     };
     const diversified: GameState['job'][] = [];
-    const maxResults = 10;
 
     const tryAdd = (job: GameState['job'], enforceSizeCaps: boolean) => {
       if (diversified.length >= maxResults) {
@@ -862,6 +899,8 @@ export class UnemployedleService {
     const includeLocal = Boolean(options.includeLocal);
     const specificLocation = toNonEmptyString(options.specificLocation);
     const desiredJobTitle = toNonEmptyString(options.desiredJobTitle);
+    const page = typeof options.page === 'number' ? options.page : null;
+    const pageSize = typeof options.pageSize === 'number' ? options.pageSize : null;
     const localLocation = includeLocal
       ? toNonEmptyString(options.localLocation) ??
         extractResumeLocation(resumeText)
@@ -873,6 +912,8 @@ export class UnemployedleService {
         includeLocal: true,
         localLocation,
         desiredJobTitle,
+        page,
+        pageSize,
       };
     }
 
@@ -882,6 +923,30 @@ export class UnemployedleService {
       specificLocation,
       localLocation,
       desiredJobTitle,
+      page,
+      pageSize,
+    };
+  }
+
+  private resolvePagination(
+    options?: JobSearchOptions,
+    enableByDefault = false,
+  ) {
+    const hasPagination =
+      enableByDefault || Boolean(options?.page) || Boolean(options?.pageSize);
+    const rawPage = options?.page ?? 1;
+    const rawPageSize = options?.pageSize ?? DEFAULT_TOP_JOBS_PAGE_SIZE;
+    const page = Math.max(1, Math.floor(rawPage));
+    const pageSize = clampNumber(
+      Math.floor(rawPageSize),
+      1,
+      DEFAULT_TOP_JOBS_COUNT,
+    );
+
+    return {
+      enabled: hasPagination,
+      page,
+      pageSize,
     };
   }
 

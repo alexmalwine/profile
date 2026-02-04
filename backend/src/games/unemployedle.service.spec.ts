@@ -188,11 +188,15 @@ describe('UnemployedleService', () => {
     expect(last.status).toBe('won');
   });
 
-  it('returns a top 10 job list', async () => {
+  it('returns a paginated job list', async () => {
     const response = await service.getTopJobs(resumeText);
 
-    expect(response.jobs).toHaveLength(10);
-    expect(response.selectionSummary).toContain(`top ${response.jobs.length}`);
+    expect(response.page).toBe(1);
+    expect(response.pageSize).toBe(5);
+    expect(response.jobs.length).toBeLessThanOrEqual(response.pageSize);
+    expect(response.totalResults).toBeGreaterThanOrEqual(response.jobs.length);
+    expect(response.totalPages).toBeGreaterThanOrEqual(1);
+    expect(response.selectionSummary).toContain('Showing matches');
     response.jobs.forEach((job) => {
       expect(job.company).toBeTruthy();
       expect(job.matchScore).toBeGreaterThanOrEqual(0);
