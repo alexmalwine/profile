@@ -117,7 +117,11 @@ export interface JobRanking {
 }
 
 export interface JobRanker {
-  rankJobs(resumeText: string, jobs: JobOpening[]): Promise<JobRanking[]>;
+  rankJobs(
+    resumeText: string,
+    jobs: JobOpening[],
+    desiredJobTitle?: string,
+  ): Promise<JobRanking[]>;
 }
 
 export interface JobSearchOptions {
@@ -125,6 +129,7 @@ export interface JobSearchOptions {
   includeLocal?: boolean;
   specificLocation?: string | null;
   localLocation?: string | null;
+  desiredJobTitle?: string | null;
 }
 
 export interface CachedJobSearch {

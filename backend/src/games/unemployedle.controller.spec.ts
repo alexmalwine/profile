@@ -106,6 +106,7 @@ describe('UnemployedleController', () => {
         includeLocal: false,
         specificLocation: 'Chicago, IL',
         localLocation: null,
+        desiredJobTitle: null,
       },
     );
   });

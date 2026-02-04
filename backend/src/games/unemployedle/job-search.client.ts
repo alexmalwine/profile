@@ -321,7 +321,11 @@ export class JobBoardSearchClient implements JobSearchClient {
     }
 
     const resumeProfile = buildResumeProfile(resumeText);
-    const baseQueries = this.buildSearchQueries(resumeText, resumeProfile);
+    const baseQueries = this.buildSearchQueries(
+      resumeText,
+      resumeProfile,
+      options?.desiredJobTitle,
+    );
     const locationVariants = this.buildLocationVariants(options);
     const queries = this.expandQueries(
       baseQueries,
@@ -721,6 +725,7 @@ export class JobBoardSearchClient implements JobSearchClient {
   private buildSearchQueries(
     resumeText: string,
     resumeProfile: ReturnType<typeof buildResumeProfile>,
+    desiredJobTitle?: string | null,
   ) {
     const lower = resumeText.toLowerCase();
     const normalizedResume = normalizeKeywordText(resumeText);
@@ -822,6 +827,17 @@ export class JobBoardSearchClient implements JobSearchClient {
         }
       }
     };
+
+    const desiredTitleValue = toNonEmptyString(desiredJobTitle);
+    const normalizedDesiredTitle = desiredTitleValue
+      ? desiredTitleValue
+          .replace(/\([^)]*\)/g, ' ')
+          .replace(/\s+/g, ' ')
+          .trim()
+      : null;
+    if (normalizedDesiredTitle) {
+      add(normalizedDesiredTitle);
+    }
 
     const scoredRules = ROLE_QUERY_RULES.map((rule, index) => {
       const experienceScore = rule.keywords.reduce(

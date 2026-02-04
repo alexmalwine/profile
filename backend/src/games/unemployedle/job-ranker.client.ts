@@ -88,7 +88,11 @@ export class ChatGptJobRanker implements JobRanker {
   private readonly logger = new Logger(ChatGptJobRanker.name);
   private readonly fetcher: typeof fetch = fetch;
 
-  async rankJobs(resumeText: string, jobs: JobOpening[]): Promise<JobRanking[]> {
+  async rankJobs(
+    resumeText: string,
+    jobs: JobOpening[],
+    desiredJobTitle?: string,
+  ): Promise<JobRanking[]> {
     if (!this.apiKey) {
       throw new ServiceUnavailableException(
         'OPENAI_API_KEY is not configured for job ranking.',
@@ -115,6 +119,7 @@ export class ChatGptJobRanker implements JobRanker {
     const focusTags = resumeProfile.focusTags;
     const focusKeywords = resumeProfile.experienceKeywords.slice(0, 10);
     const resumeSummaryParts = [
+      desiredJobTitle ? `Desired job title: ${desiredJobTitle}` : null,
       focusTags.length > 0 ? `Focus areas: ${focusTags.join(', ')}` : null,
       focusKeywords.length > 0
         ? `Experience keywords: ${focusKeywords.join(', ')}`
@@ -169,6 +174,8 @@ export class ChatGptJobRanker implements JobRanker {
             'job descriptions and weight those matches higher.\n' +
             '- If the resume is backend-heavy, backend roles should score ' +
             'higher than frontend roles.\n' +
+            '- If a desired job title is provided, treat it as the highest ' +
+            'priority signal.\n' +
             '- Use job focusTags when provided.\n\n' +
             `Resume experience summary:\n${resumeSummary}\n\n` +
             `Resume (full):\n${trimmedResume}\n\n` +

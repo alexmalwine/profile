@@ -16,6 +16,8 @@ const GamesSection = ({ apiStatus, apiStatusLabel }) => {
     jobsError,
     isListing,
     topJobsSummary,
+    desiredJobTitle,
+    setDesiredJobTitle,
     locationPreferences,
     setLocationPreferences,
     handleResumeChange,
@@ -211,6 +213,23 @@ const GamesSection = ({ apiStatus, apiStatusLabel }) => {
                       Selected file: <strong>{resumeFile.name}</strong>
                     </p>
                   )}
+                  <div className="form-group">
+                    <p className="label">Desired Job Title (optional)</p>
+                    <input
+                      type="text"
+                      className="text-input"
+                      placeholder="Senior Full Stack Engineer"
+                      value={desiredJobTitle}
+                      disabled={isGenerating}
+                      onChange={(event) =>
+                        setDesiredJobTitle(event.target.value)
+                      }
+                    />
+                    <p className="note">
+                      Narrow your search further by telling us the title you want
+                      for your next job
+                    </p>
+                  </div>
                   <div className="form-group">
                     <p className="label">Job location filters</p>
                     <label className="checkbox">

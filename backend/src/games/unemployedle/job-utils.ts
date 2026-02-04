@@ -292,9 +292,56 @@ const pickPrimaryFocus = (scores: FocusScore[]) => {
   );
 };
 
+const normalizeDesiredTitle = (value: string) =>
+  value
+    .replace(/\([^)]*\)/g, ' ')
+    .replace(/[^a-z0-9\s]+/gi, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .toLowerCase();
+
+const computeDesiredTitleScore = (
+  desiredJobTitle: string,
+  job: JobOpening,
+) => {
+  const normalizedDesired = normalizeDesiredTitle(desiredJobTitle);
+  if (!normalizedDesired) {
+    return 0;
+  }
+
+  const normalizedTitle = normalizeKeywordText(job.title);
+  if (normalizedTitle.includes(normalizedDesired)) {
+    return 1;
+  }
+
+  const desiredKeywords = extractKeywordsFromText(normalizedDesired);
+  const jobKeywords =
+    job.keywords.length > 0 ? job.keywords : extractKeywordsFromText(job.title);
+  const titleKeywords = extractKeywordsFromText(job.title);
+  const keywordPool = new Set([...jobKeywords, ...titleKeywords]);
+
+  if (desiredKeywords.length > 0) {
+    const matches = desiredKeywords.filter((keyword) =>
+      keywordPool.has(keyword),
+    ).length;
+    return matches / desiredKeywords.length;
+  }
+
+  const desiredTokens = normalizedDesired.split(' ').filter(Boolean);
+  if (desiredTokens.length === 0) {
+    return 0;
+  }
+  const titleTokens = normalizedTitle.split(' ').filter(Boolean);
+  const tokenMatches = desiredTokens.filter((token) =>
+    titleTokens.includes(token),
+  ).length;
+  return tokenMatches / desiredTokens.length;
+};
+
 export const computeMatchScore = (
   job: JobOpening,
   resumeProfile: ResumeProfile,
+  desiredJobTitle?: string | null,
 ) => {
   const jobKeywords =
     job.keywords.length > 0 ? job.keywords : extractKeywordsFromText(job.title);
@@ -303,7 +350,14 @@ export const computeMatchScore = (
       resumeProfile.focusScores,
       scoreFocusRules(job.title),
     );
-    return clampNumber(0.35 + focusAlignment * 0.45, 0, 1);
+    const desiredScore = desiredJobTitle
+      ? computeDesiredTitleScore(desiredJobTitle, job)
+      : 0;
+    const adjustedScore =
+      desiredJobTitle && desiredScore > 0
+        ? desiredScore * 0.55 + focusAlignment * 0.45
+        : focusAlignment;
+    return clampNumber(0.35 + adjustedScore * 0.45, 0, 1);
   }
 
   const resumeKeywordSet = resumeProfile.keywords;
@@ -330,6 +384,10 @@ export const computeMatchScore = (
           .length / titleKeywords.length
       : null;
 
+  const desiredScore = desiredJobTitle
+    ? computeDesiredTitleScore(desiredJobTitle, job)
+    : null;
+
   const components: Array<{ score: number; weight: number }> = [
     { score: experienceOverlap, weight: 0.45 },
     { score: keywordOverlap, weight: 0.25 },
@@ -348,7 +406,11 @@ export const computeMatchScore = (
       (sum, component) => sum + component.score * component.weight,
       0,
     ) / totalWeight;
-  let score = 0.15 + weightedScore * 0.85;
+  const blendedScore =
+    desiredScore !== null
+      ? desiredScore * 0.45 + weightedScore * 0.55
+      : weightedScore;
+  let score = 0.15 + blendedScore * 0.85;
 
   const resumePrimary = pickPrimaryFocus(resumeProfile.focusScores);
   const jobPrimary = pickPrimaryFocus(jobFocusScores);

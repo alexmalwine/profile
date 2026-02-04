@@ -208,6 +208,7 @@ export class UnemployedleService {
 
   private async rankJobs(resumeText: string, options?: JobSearchOptions) {
     const resumeProfile = buildResumeProfile(resumeText);
+    const desiredJobTitle = toNonEmptyString(options?.desiredJobTitle);
     const { verifiedJobs, searchResult } = await this.gatherVerifiedJobs(
       resumeText,
       options,
@@ -220,7 +221,11 @@ export class UnemployedleService {
 
     let rankedCandidates = verifiedJobs;
     try {
-      const rankings = await this.jobRanker.rankJobs(resumeText, verifiedJobs);
+      const rankings = await this.jobRanker.rankJobs(
+        resumeText,
+        verifiedJobs,
+        desiredJobTitle ?? undefined,
+      );
       rankedCandidates = this.applyRankings(verifiedJobs, rankings);
     } catch (error) {
       const message =
@@ -233,7 +238,7 @@ export class UnemployedleService {
         const matchScore =
           typeof job.matchScoreHint === 'number'
             ? clampNumber(job.matchScoreHint, 0, 1)
-            : computeMatchScore(job, resumeProfile);
+            : computeMatchScore(job, resumeProfile, desiredJobTitle);
         const overallScore = matchScore;
 
         return {
@@ -856,13 +861,19 @@ export class UnemployedleService {
     const includeRemote = Boolean(options.includeRemote);
     const includeLocal = Boolean(options.includeLocal);
     const specificLocation = toNonEmptyString(options.specificLocation);
+    const desiredJobTitle = toNonEmptyString(options.desiredJobTitle);
     const localLocation = includeLocal
       ? toNonEmptyString(options.localLocation) ??
         extractResumeLocation(resumeText)
       : null;
 
     if (!includeRemote && !includeLocal && !specificLocation) {
-      return { includeRemote: true, includeLocal: true, localLocation };
+      return {
+        includeRemote: true,
+        includeLocal: true,
+        localLocation,
+        desiredJobTitle,
+      };
     }
 
     return {
@@ -870,6 +881,7 @@ export class UnemployedleService {
       includeLocal,
       specificLocation,
       localLocation,
+      desiredJobTitle,
     };
   }
 

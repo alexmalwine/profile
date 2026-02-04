@@ -12,6 +12,7 @@ export const useUnemployedleGame = () => {
   const [jobsError, setJobsError] = useState('')
   const [isListing, setIsListing] = useState(false)
   const [topJobsSummary, setTopJobsSummary] = useState('')
+  const [desiredJobTitle, setDesiredJobTitle] = useState('')
   const [locationPreferences, setLocationPreferences] = useState({
     includeRemote: true,
     includeLocal: true,
@@ -62,6 +63,9 @@ export const useUnemployedleGame = () => {
           'specificLocation',
           locationPreferences.specificLocation.trim(),
         )
+      }
+      if (desiredJobTitle.trim()) {
+        formData.append('desiredJobTitle', desiredJobTitle.trim())
       }
 
       const response = await fetch('/api/games/unemployedle/start', {
@@ -126,6 +130,9 @@ export const useUnemployedleGame = () => {
           'specificLocation',
           locationPreferences.specificLocation.trim(),
         )
+      }
+      if (desiredJobTitle.trim()) {
+        formData.append('desiredJobTitle', desiredJobTitle.trim())
       }
 
       const response = await fetch('/api/games/unemployedle/jobs', {
@@ -203,6 +210,7 @@ export const useUnemployedleGame = () => {
     setTopJobs([])
     setJobsError('')
     setTopJobsSummary('')
+    setDesiredJobTitle('')
     setLocationPreferences({
       includeRemote: true,
       includeLocal: true,
@@ -223,6 +231,8 @@ export const useUnemployedleGame = () => {
     jobsError,
     isListing,
     topJobsSummary,
+    desiredJobTitle,
+    setDesiredJobTitle,
     locationPreferences,
     setLocationPreferences,
     handleResumeChange,
