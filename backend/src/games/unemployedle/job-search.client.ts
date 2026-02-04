@@ -507,58 +507,58 @@ const normalizeUrl = (value: unknown) => {
   }
 };
 
-const STATE_FALLBACK_CITIES: Record<string, string> = {
-  AL: 'Birmingham, AL',
-  AK: 'Anchorage, AK',
-  AZ: 'Phoenix, AZ',
-  AR: 'Little Rock, AR',
-  CA: 'Los Angeles, CA',
-  CO: 'Denver, CO',
-  CT: 'Hartford, CT',
-  DE: 'Wilmington, DE',
-  FL: 'Miami, FL',
-  GA: 'Atlanta, GA',
-  HI: 'Honolulu, HI',
-  ID: 'Boise, ID',
-  IL: 'Chicago, IL',
-  IN: 'Indianapolis, IN',
-  IA: 'Des Moines, IA',
-  KS: 'Wichita, KS',
-  KY: 'Louisville, KY',
-  LA: 'New Orleans, LA',
-  ME: 'Portland, ME',
-  MD: 'Baltimore, MD',
-  MA: 'Boston, MA',
-  MI: 'Detroit, MI',
-  MN: 'Minneapolis, MN',
-  MS: 'Jackson, MS',
-  MO: 'St. Louis, MO',
-  MT: 'Billings, MT',
-  NE: 'Omaha, NE',
-  NV: 'Las Vegas, NV',
-  NH: 'Manchester, NH',
-  NJ: 'Newark, NJ',
-  NM: 'Albuquerque, NM',
-  NY: 'New York, NY',
-  NC: 'Charlotte, NC',
-  ND: 'Fargo, ND',
-  OH: 'Columbus, OH',
-  OK: 'Oklahoma City, OK',
-  OR: 'Portland, OR',
-  PA: 'Philadelphia, PA',
-  RI: 'Providence, RI',
-  SC: 'Charleston, SC',
-  SD: 'Sioux Falls, SD',
-  TN: 'Nashville, TN',
-  TX: 'Dallas, TX',
-  UT: 'Salt Lake City, UT',
-  VT: 'Burlington, VT',
-  VA: 'Richmond, VA',
-  WA: 'Seattle, WA',
-  WV: 'Charleston, WV',
-  WI: 'Milwaukee, WI',
-  WY: 'Cheyenne, WY',
-  DC: 'Washington, DC',
+const STATE_FALLBACK_CITIES: Record<string, string[]> = {
+  AL: ['Birmingham, AL', 'Mobile, AL'],
+  AK: ['Anchorage, AK'],
+  AZ: ['Phoenix, AZ', 'Tucson, AZ'],
+  AR: ['Little Rock, AR'],
+  CA: ['Los Angeles, CA', 'San Francisco, CA', 'San Diego, CA'],
+  CO: ['Denver, CO', 'Colorado Springs, CO'],
+  CT: ['Hartford, CT'],
+  DE: ['Wilmington, DE'],
+  FL: ['Miami, FL', 'Orlando, FL', 'Tampa, FL'],
+  GA: ['Atlanta, GA'],
+  HI: ['Honolulu, HI'],
+  ID: ['Boise, ID'],
+  IL: ['Chicago, IL'],
+  IN: ['Indianapolis, IN'],
+  IA: ['Des Moines, IA'],
+  KS: ['Wichita, KS'],
+  KY: ['Louisville, KY'],
+  LA: ['New Orleans, LA', 'Baton Rouge, LA'],
+  ME: ['Portland, ME'],
+  MD: ['Baltimore, MD'],
+  MA: ['Boston, MA'],
+  MI: ['Detroit, MI'],
+  MN: ['Minneapolis, MN', 'St. Paul, MN'],
+  MS: ['Jackson, MS'],
+  MO: ['Kansas City, MO', 'St. Louis, MO'],
+  MT: ['Billings, MT'],
+  NE: ['Omaha, NE'],
+  NV: ['Las Vegas, NV'],
+  NH: ['Manchester, NH'],
+  NJ: ['Newark, NJ'],
+  NM: ['Albuquerque, NM'],
+  NY: ['New York, NY', 'Buffalo, NY'],
+  NC: ['Charlotte, NC', 'Raleigh, NC'],
+  ND: ['Fargo, ND'],
+  OH: ['Columbus, OH', 'Cleveland, OH'],
+  OK: ['Oklahoma City, OK'],
+  OR: ['Portland, OR'],
+  PA: ['Philadelphia, PA', 'Pittsburgh, PA'],
+  RI: ['Providence, RI'],
+  SC: ['Charleston, SC'],
+  SD: ['Sioux Falls, SD'],
+  TN: ['Nashville, TN', 'Memphis, TN'],
+  TX: ['Dallas, TX', 'Houston, TX', 'Austin, TX'],
+  UT: ['Salt Lake City, UT'],
+  VT: ['Burlington, VT'],
+  VA: ['Richmond, VA'],
+  WA: ['Seattle, WA'],
+  WV: ['Charleston, WV'],
+  WI: ['Milwaukee, WI'],
+  WY: ['Cheyenne, WY'],
+  DC: ['Washington, DC'],
 };
 
 const STATE_NAME_TO_CODE: Record<string, string> = {
@@ -628,12 +628,55 @@ const extractStateCode = (location: string) => {
   return matchedEntry?.[1] ?? null;
 };
 
+const normalizeCityTokens = (value: string) => {
+  const normalized = value
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, ' ')
+    .replace(/\bst\b/g, 'saint')
+    .replace(/\bft\b/g, 'fort')
+    .replace(/\s+/g, ' ')
+    .trim();
+  return new Set(normalized.split(' ').filter(Boolean));
+};
+
+const scoreCityMatch = (inputTokens: Set<string>, candidateCity: string) => {
+  const candidateTokens = normalizeCityTokens(candidateCity);
+  let score = 0;
+  inputTokens.forEach((token) => {
+    if (candidateTokens.has(token)) {
+      score += 1;
+    }
+  });
+  return score;
+};
+
 const findFallbackLocation = (location: string) => {
   const stateCode = extractStateCode(location);
   if (!stateCode) {
     return null;
   }
-  return STATE_FALLBACK_CITIES[stateCode] ?? null;
+  const candidates = STATE_FALLBACK_CITIES[stateCode];
+  if (!candidates || candidates.length === 0) {
+    return null;
+  }
+  const cityPart = location.split(',')[0]?.trim();
+  if (!cityPart) {
+    return candidates[0];
+  }
+  const inputTokens = normalizeCityTokens(cityPart);
+  if (inputTokens.size === 0) {
+    return candidates[0];
+  }
+  let bestCandidate = candidates[0];
+  let bestScore = scoreCityMatch(inputTokens, candidates[0]);
+  candidates.slice(1).forEach((candidate) => {
+    const score = scoreCityMatch(inputTokens, candidate);
+    if (score > bestScore) {
+      bestScore = score;
+      bestCandidate = candidate;
+    }
+  });
+  return bestCandidate;
 };
 
 const isUnsupportedLocationError = (errorText: string) => {
