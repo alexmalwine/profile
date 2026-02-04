@@ -536,8 +536,8 @@ const GamesSection = ({ apiStatus, apiStatusLabel }) => {
                   </button>
                 </div>
                 <p className="note">
-                  Formatting is currently mocked with basic templates. Swap in a
-                  richer parser or LLM-based formatting when ready.
+                  Formatting pulls summary, highlights, and skills directly from
+                  your resume.
                 </p>
               </div>
 

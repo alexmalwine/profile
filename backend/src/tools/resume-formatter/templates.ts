@@ -4,25 +4,25 @@ export const formatModern = (
   bullets: string[],
   skills: string[],
 ) => {
-  const summaryText = summary || 'Add a concise summary of your impact.';
-  const highlightLines =
-    bullets.length > 0
-      ? bullets.map((line) => `- ${line}`)
-      : ['- Add measurable outcomes and achievements.'];
-  const skillsLine = skills.length > 0 ? skills.join(', ') : 'Add core skills.';
+  const sections: string[] = [`# ${name}`];
+  const summaryText = summary?.trim();
+  const highlightLines = bullets
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .map((line) => `- ${line}`);
+  const skillsLine = skills.map((skill) => skill.trim()).filter(Boolean).join(', ');
 
-  return [
-    `# ${name}`,
-    '',
-    '## Summary',
-    summaryText,
-    '',
-    '## Highlights',
-    ...highlightLines,
-    '',
-    '## Skills',
-    skillsLine,
-  ].join('\n');
+  if (summaryText) {
+    sections.push('', '## Summary', summaryText);
+  }
+  if (highlightLines.length > 0) {
+    sections.push('', '## Highlights', ...highlightLines);
+  }
+  if (skillsLine) {
+    sections.push('', '## Skills', skillsLine);
+  }
+
+  return sections.join('\n');
 };
 
 export const formatClassic = (
@@ -31,26 +31,28 @@ export const formatClassic = (
   bullets: string[],
   skills: string[],
 ) => {
-  const summaryText = summary || 'Add a concise summary of your impact.';
-  const highlightLines =
-    bullets.length > 0
-      ? bullets.map((line) => `- ${line}`)
-      : ['- Add measurable outcomes and achievements.'];
-  const skillsLine = skills.length > 0 ? skills.join(', ') : 'Add core skills.';
-
-  return [
+  const sections: string[] = [
     name.toUpperCase(),
     '='.repeat(Math.min(40, Math.max(12, name.length))),
-    '',
-    'SUMMARY',
-    summaryText,
-    '',
-    'EXPERIENCE',
-    ...highlightLines,
-    '',
-    'SKILLS',
-    skillsLine,
-  ].join('\n');
+  ];
+  const summaryText = summary?.trim();
+  const highlightLines = bullets
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .map((line) => `- ${line}`);
+  const skillsLine = skills.map((skill) => skill.trim()).filter(Boolean).join(', ');
+
+  if (summaryText) {
+    sections.push('', 'SUMMARY', summaryText);
+  }
+  if (highlightLines.length > 0) {
+    sections.push('', 'EXPERIENCE', ...highlightLines);
+  }
+  if (skillsLine) {
+    sections.push('', 'SKILLS', skillsLine);
+  }
+
+  return sections.join('\n');
 };
 
 export const formatCompact = (
@@ -60,11 +62,14 @@ export const formatCompact = (
   skills: string[],
 ) => {
   const headline = `${name} | Resume`;
-  const summaryText = summary || 'Add a concise summary of your impact.';
-  const allHighlights = bullets.length > 0 ? bullets : [summaryText];
-  const skillsLine = skills.length > 0 ? skills.join(', ') : 'Add core skills.';
-
-  return [headline, '', summaryText, '', allHighlights.join(' • '), '', skillsLine]
+  const summaryText = summary?.trim();
+  const highlightText = bullets
+    .map((line) => line.trim())
     .filter(Boolean)
+    .join(' • ');
+  const skillsLine = skills.map((skill) => skill.trim()).filter(Boolean).join(', ');
+
+  return [headline, '', summaryText, '', highlightText, '', skillsLine]
+    .filter((line) => Boolean(line && line.trim()))
     .join('\n');
 };
