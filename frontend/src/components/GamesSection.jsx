@@ -177,9 +177,6 @@ const GamesSection = ({ apiStatus, apiStatusLabel }) => {
                             </p>
                           </div>
                           <div className="job-badges">
-                            <span className="pill">
-                              Match {job.matchScore}%
-                            </span>
                             <span className="pill">{job.source}</span>
                           </div>
                           <a
@@ -332,7 +329,6 @@ const GamesSection = ({ apiStatus, apiStatusLabel }) => {
                         {gameState.job.location} · {gameState.job.source}
                       </p>
                       <div className="job-meta">
-                        <span>Match {gameState.job.matchScore}%</span>
                       </div>
                       <p className="muted">
                         Company: {gameState.job.companyMasked}
