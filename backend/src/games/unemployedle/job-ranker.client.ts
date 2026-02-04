@@ -11,6 +11,8 @@ import {
   OPENAI_TIMEOUT_MS,
 } from './constants';
 import {
+  buildResumeProfile,
+  extractFocusTags,
   normalizeCompanySize,
   safeParseJson,
   toNonEmptyString,
@@ -98,6 +100,33 @@ export class ChatGptJobRanker implements JobRanker {
     }
 
     const trimmedResume = truncateText(resumeText, MAX_RESUME_CHARS);
+    const resumeProfile = buildResumeProfile(resumeText);
+    const experienceHighlights = resumeProfile.experienceHighlights
+      .map((line) => truncateText(line, 160))
+      .filter(Boolean);
+    const experienceFallback = resumeProfile.experienceText
+      .split('\n')
+      .map((line) => line.trim())
+      .filter(Boolean)
+      .slice(0, 6)
+      .map((line) => truncateText(line, 160));
+    const experienceLines =
+      experienceHighlights.length > 0 ? experienceHighlights : experienceFallback;
+    const focusTags = resumeProfile.focusTags;
+    const focusKeywords = resumeProfile.experienceKeywords.slice(0, 10);
+    const resumeSummaryParts = [
+      focusTags.length > 0 ? `Focus areas: ${focusTags.join(', ')}` : null,
+      focusKeywords.length > 0
+        ? `Experience keywords: ${focusKeywords.join(', ')}`
+        : null,
+      experienceLines.length > 0
+        ? `Experience highlights:\n- ${experienceLines.join('\n- ')}`
+        : null,
+    ].filter(Boolean);
+    const resumeSummary =
+      resumeSummaryParts.length > 0
+        ? resumeSummaryParts.join('\n')
+        : 'Experience summary: Not available.';
     const jobPayload = jobs.slice(0, MAX_RANKING_JOBS).map((job) => ({
       id: job.id,
       company: job.company,
@@ -105,7 +134,11 @@ export class ChatGptJobRanker implements JobRanker {
       location: job.location,
       source: job.source,
       companySize: job.companySize ?? null,
-      keywords: job.keywords.slice(0, 6),
+      keywords: job.keywords.slice(0, 8),
+      focusTags: extractFocusTags(
+        `${job.title} ${job.keywords.join(' ')}`.trim(),
+        2,
+      ),
     }));
 
     const requestBody = {
@@ -115,7 +148,8 @@ export class ChatGptJobRanker implements JobRanker {
           role: 'system',
           content:
             'You are a job ranking assistant. Rank ONLY the provided jobs ' +
-            'based on the resume fit. Return JSON only.',
+            'based on the resume fit. Prioritize prior job responsibilities ' +
+            'and focus areas over raw keyword overlap. Return JSON only.',
         },
         {
           role: 'user',
@@ -124,11 +158,20 @@ export class ChatGptJobRanker implements JobRanker {
             'id (from the list), matchScore (0-100), companySize ' +
             '(large|mid|startup), and companyHint (<=15 words, no company name). ' +
             'Make companyHint specific using ONLY the provided fields (size, ' +
-            'industry signals, location, or focus keywords). Do not invent ' +
-            'external facts or news. Do not add or remove jobs. Do not ' +
-            'fabricate URLs. If unsure about companySize or companyHint, set ' +
-            'them to null.\n\n' +
-            `Resume:\n${trimmedResume}\n\n` +
+            'industry signals, location, focus keywords, or focus tags). Do ' +
+            'not invent external facts or news. Do not add or remove jobs. ' +
+            'Do not fabricate URLs. If unsure about companySize or ' +
+            'companyHint, set them to null.\n\n' +
+            'Scoring guidance:\n' +
+            '- Use resume experience highlights and job keywords/focusTags ' +
+            'more than the skills list.\n' +
+            '- Infer focus areas (e.g., backend vs frontend) from the resume ' +
+            'job descriptions and weight those matches higher.\n' +
+            '- If the resume is backend-heavy, backend roles should score ' +
+            'higher than frontend roles.\n' +
+            '- Use job focusTags when provided.\n\n' +
+            `Resume experience summary:\n${resumeSummary}\n\n` +
+            `Resume (full):\n${trimmedResume}\n\n` +
             `Jobs:\n${JSON.stringify(jobPayload)}`,
         },
       ],

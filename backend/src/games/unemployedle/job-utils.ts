@@ -1,6 +1,11 @@
 import { createHash } from 'crypto';
 import { DEFAULT_RATING } from './constants';
 import { KNOWN_KEYWORDS } from './keywords';
+import {
+  EXPERIENCE_HEADERS,
+  ROLE_QUERY_RULES,
+  SECTION_HEADERS,
+} from './job-search.constants';
 import type {
   CompanySize,
   JobOpening,
@@ -83,18 +88,282 @@ export const extractResumeLocation = (resumeText: string) => {
   return null;
 };
 
-export const computeMatchScore = (
-  job: JobOpening,
-  resumeKeywords: Set<string>,
-) => {
-  if (job.keywords.length === 0) {
-    return 0.4;
+type FocusScore = {
+  id: string;
+  score: number;
+  matchedKeywords: string[];
+};
+
+export type ResumeProfile = {
+  keywords: Set<string>;
+  experienceText: string;
+  experienceHighlights: string[];
+  experienceKeywords: string[];
+  focusScores: FocusScore[];
+  focusTags: string[];
+};
+
+const MAX_EXPERIENCE_LINES = 80;
+const MAX_EXPERIENCE_HIGHLIGHTS = 8;
+const MAX_EXPERIENCE_CHARS = 1600;
+const STRONG_FOCUS_THRESHOLD = 0.35;
+const GENERIC_FOCUS_TAGS = new Set(['software engineer']);
+const BULLET_REGEX = /^[-*\u2022]\s+/;
+
+const FOCUS_RULES = ROLE_QUERY_RULES.map((rule) => ({
+  id: rule.query,
+  keywords: rule.keywords,
+  requiredKeywords: rule.requiredKeywords,
+  minScore: rule.minScore ?? 1,
+}));
+
+const normalizeResumeLines = (resumeText: string) =>
+  resumeText
+    .replace(/\t/g, ' ')
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+
+const normalizeHeaderLine = (line: string) =>
+  line
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+const matchesHeader = (line: string, headers: string[]) => {
+  const normalized = normalizeHeaderLine(line);
+  return headers.some(
+    (header) => normalized === header || normalized.startsWith(`${header} `),
+  );
+};
+
+const extractExperienceLines = (resumeText: string) => {
+  const lines = normalizeResumeLines(resumeText);
+  if (lines.length === 0) {
+    return [];
   }
 
-  const matches = job.keywords.filter((keyword) =>
-    resumeKeywords.has(keyword),
-  ).length;
-  return matches / job.keywords.length;
+  const experienceIndex = lines.findIndex((line) =>
+    matchesHeader(line, EXPERIENCE_HEADERS),
+  );
+
+  let sectionLines = lines;
+  if (experienceIndex >= 0) {
+    let endIndex = lines.length;
+    for (let i = experienceIndex + 1; i < lines.length; i += 1) {
+      if (
+        matchesHeader(lines[i], SECTION_HEADERS) &&
+        !matchesHeader(lines[i], EXPERIENCE_HEADERS)
+      ) {
+        endIndex = i;
+        break;
+      }
+    }
+    sectionLines = lines.slice(experienceIndex + 1, endIndex);
+  }
+
+  const trimmed = sectionLines.filter(Boolean);
+  const fallback = trimmed.length >= 3 ? trimmed : lines;
+  return fallback.slice(0, MAX_EXPERIENCE_LINES);
+};
+
+const extractExperienceHighlights = (lines: string[]) => {
+  const bullets = lines
+    .filter((line) => BULLET_REGEX.test(line))
+    .map((line) => line.replace(BULLET_REGEX, '').trim())
+    .filter(Boolean);
+  const source = bullets.length > 0 ? bullets : lines;
+  return source.slice(0, MAX_EXPERIENCE_HIGHLIGHTS);
+};
+
+const orderKeywordsByAppearance = (text: string, keywords: string[]) => {
+  const lower = text.toLowerCase();
+  return keywords
+    .map((keyword) => ({
+      keyword,
+      index: lower.indexOf(keyword.toLowerCase()),
+    }))
+    .filter((entry) => entry.index >= 0)
+    .sort((a, b) => a.index - b.index)
+    .map((entry) => entry.keyword);
+};
+
+const scoreFocusRules = (text: string): FocusScore[] => {
+  const lower = text.toLowerCase();
+  const normalized = normalizeKeywordText(text);
+  return FOCUS_RULES.map((rule) => {
+    const matchedKeywords = rule.keywords.filter((keyword) =>
+      keywordMatches(lower, normalized, keyword),
+    );
+    const matchCount = matchedKeywords.length;
+    const requiredMatch = rule.requiredKeywords
+      ? rule.requiredKeywords.some((keyword) =>
+          keywordMatches(lower, normalized, keyword),
+        )
+      : true;
+    if (!requiredMatch || matchCount < rule.minScore) {
+      return null;
+    }
+    return {
+      id: rule.id,
+      score: matchCount / rule.keywords.length,
+      matchedKeywords,
+    };
+  }).filter((entry): entry is FocusScore => Boolean(entry));
+};
+
+const selectTopFocusTags = (scores: FocusScore[], maxTags: number) => {
+  if (scores.length === 0) {
+    return [];
+  }
+  const sorted = [...scores].sort((a, b) => b.score - a.score);
+  const nonGeneric = sorted.filter((entry) => !GENERIC_FOCUS_TAGS.has(entry.id));
+  const source = nonGeneric.length > 0 ? nonGeneric : sorted;
+  return source.slice(0, maxTags).map((entry) => entry.id);
+};
+
+export const extractFocusTags = (text: string, maxTags = 3) =>
+  selectTopFocusTags(scoreFocusRules(text), maxTags);
+
+export const buildResumeProfile = (resumeText: string): ResumeProfile => {
+  const keywords = extractResumeKeywords(resumeText);
+  const experienceLines = extractExperienceLines(resumeText);
+  const experienceHighlights = extractExperienceHighlights(experienceLines);
+  const experienceText = truncateText(
+    experienceLines.join('\n'),
+    MAX_EXPERIENCE_CHARS,
+  );
+  const experienceKeywords = orderKeywordsByAppearance(
+    experienceText,
+    extractKeywordsFromText(experienceText),
+  );
+  const focusSource = experienceText.length >= 80 ? experienceText : resumeText;
+  const focusScores = scoreFocusRules(focusSource);
+  const focusTags = selectTopFocusTags(focusScores, 3);
+
+  return {
+    keywords,
+    experienceText,
+    experienceHighlights,
+    experienceKeywords,
+    focusScores,
+    focusTags,
+  };
+};
+
+const computeFocusAlignment = (
+  resumeScores: FocusScore[],
+  jobScores: FocusScore[],
+) => {
+  if (resumeScores.length === 0 || jobScores.length === 0) {
+    return 0;
+  }
+  const resumeMap = new Map(
+    resumeScores.map((score) => [score.id, score.score]),
+  );
+  const jobMap = new Map(jobScores.map((score) => [score.id, score.score]));
+  const keys = new Set([...resumeMap.keys(), ...jobMap.keys()]);
+  let dot = 0;
+  let resumeNorm = 0;
+  let jobNorm = 0;
+
+  keys.forEach((key) => {
+    const weight = GENERIC_FOCUS_TAGS.has(key) ? 0.6 : 1;
+    const resumeScore = (resumeMap.get(key) ?? 0) * weight;
+    const jobScore = (jobMap.get(key) ?? 0) * weight;
+    dot += resumeScore * jobScore;
+    resumeNorm += resumeScore * resumeScore;
+    jobNorm += jobScore * jobScore;
+  });
+
+  if (resumeNorm === 0 || jobNorm === 0) {
+    return 0;
+  }
+
+  return dot / (Math.sqrt(resumeNorm) * Math.sqrt(jobNorm));
+};
+
+const pickPrimaryFocus = (scores: FocusScore[]) => {
+  if (scores.length === 0) {
+    return null;
+  }
+  return scores.reduce((best, current) =>
+    current.score > best.score ? current : best,
+  );
+};
+
+export const computeMatchScore = (
+  job: JobOpening,
+  resumeProfile: ResumeProfile,
+) => {
+  const jobKeywords =
+    job.keywords.length > 0 ? job.keywords : extractKeywordsFromText(job.title);
+  if (jobKeywords.length === 0) {
+    const focusAlignment = computeFocusAlignment(
+      resumeProfile.focusScores,
+      scoreFocusRules(job.title),
+    );
+    return clampNumber(0.35 + focusAlignment * 0.45, 0, 1);
+  }
+
+  const resumeKeywordSet = resumeProfile.keywords;
+  const experienceKeywordSet = new Set(resumeProfile.experienceKeywords);
+  const keywordOverlap =
+    jobKeywords.filter((keyword) => resumeKeywordSet.has(keyword)).length /
+    jobKeywords.length;
+  const experienceOverlapBase =
+    jobKeywords.filter((keyword) => experienceKeywordSet.has(keyword)).length /
+    jobKeywords.length;
+  const experienceOverlap =
+    experienceKeywordSet.size > 0 ? experienceOverlapBase : keywordOverlap * 0.7;
+
+  const jobText = `${job.title} ${jobKeywords.join(' ')}`.trim();
+  const jobFocusScores = scoreFocusRules(jobText);
+  const focusAlignment = computeFocusAlignment(
+    resumeProfile.focusScores,
+    jobFocusScores,
+  );
+  const titleKeywords = extractKeywordsFromText(job.title);
+  const titleOverlap =
+    titleKeywords.length > 0
+      ? titleKeywords.filter((keyword) => experienceKeywordSet.has(keyword))
+          .length / titleKeywords.length
+      : null;
+
+  const components: Array<{ score: number; weight: number }> = [
+    { score: experienceOverlap, weight: 0.45 },
+    { score: keywordOverlap, weight: 0.25 },
+    { score: focusAlignment, weight: 0.2 },
+  ];
+  if (titleOverlap !== null) {
+    components.push({ score: titleOverlap, weight: 0.1 });
+  }
+
+  const totalWeight = components.reduce(
+    (sum, component) => sum + component.weight,
+    0,
+  );
+  const weightedScore =
+    components.reduce(
+      (sum, component) => sum + component.score * component.weight,
+      0,
+    ) / totalWeight;
+  let score = 0.15 + weightedScore * 0.85;
+
+  const resumePrimary = pickPrimaryFocus(resumeProfile.focusScores);
+  const jobPrimary = pickPrimaryFocus(jobFocusScores);
+  if (
+    resumePrimary &&
+    jobPrimary &&
+    resumePrimary.id !== jobPrimary.id &&
+    resumePrimary.score >= STRONG_FOCUS_THRESHOLD &&
+    jobPrimary.score >= STRONG_FOCUS_THRESHOLD
+  ) {
+    score = clampNumber(score - 0.1, 0, 1);
+  }
+
+  return clampNumber(score, 0, 1);
 };
 
 export const clampNumber = (value: number, min: number, max: number) =>

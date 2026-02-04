@@ -17,9 +17,9 @@ import { ChatGptJobRanker } from './unemployedle/job-ranker.client';
 import {
   buildJobId,
   buildSelectionSummary,
+  buildResumeProfile,
   clampNumber,
   computeMatchScore,
-  extractResumeKeywords,
   extractResumeLocation,
   maskCompanyName,
   normalizeCompanyKey,
@@ -208,7 +208,7 @@ export class UnemployedleService {
   }
 
   private async rankJobs(resumeText: string, options?: JobSearchOptions) {
-    const resumeKeywords = extractResumeKeywords(resumeText);
+    const resumeProfile = buildResumeProfile(resumeText);
     const { verifiedJobs, searchResult } = await this.gatherVerifiedJobs(
       resumeText,
       options,
@@ -234,7 +234,7 @@ export class UnemployedleService {
         const matchScore =
           typeof job.matchScoreHint === 'number'
             ? clampNumber(job.matchScoreHint, 0, 1)
-            : computeMatchScore(job, resumeKeywords);
+            : computeMatchScore(job, resumeProfile);
         const ratingScore = job.rating / 5;
         const overallScore = matchScore * 0.75 + ratingScore * 0.25;
 
