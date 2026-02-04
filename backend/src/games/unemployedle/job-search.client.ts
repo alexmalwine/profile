@@ -683,30 +683,34 @@ const tokenMatches = (text: string, token: string) => {
 const scoreTokens = (text: string, tokens: string[]) =>
   tokens.reduce((total, token) => total + (tokenMatches(text, token) ? 1 : 0), 0);
 
-const pickBestTitle = (candidates: string[]) => {
-  let best: { title: string; score: number; length: number } | null = null;
+const pickBestTitle = (candidates: string[]): string | null => {
+  let bestTitle: string | null = null;
+  let bestScore = 0;
+  let bestLength = Number.POSITIVE_INFINITY;
 
-  candidates.forEach((candidate) => {
+  for (const candidate of candidates) {
     const trimmed = candidate.trim();
     if (!trimmed) {
-      return;
+      continue;
     }
     const lower = trimmed.toLowerCase();
     const score = scoreTokens(lower, RESUME_TITLE_TOKENS);
     if (score <= 0) {
-      return;
+      continue;
     }
     const length = trimmed.length;
     if (
-      !best ||
-      score > best.score ||
-      (score === best.score && length < best.length)
+      !bestTitle ||
+      score > bestScore ||
+      (score === bestScore && length < bestLength)
     ) {
-      best = { title: trimmed, score, length };
+      bestTitle = trimmed;
+      bestScore = score;
+      bestLength = length;
     }
-  });
+  }
 
-  return best?.title ?? null;
+  return bestTitle;
 };
 
 const cleanJobTitle = (value: string) =>
@@ -791,7 +795,7 @@ const extractLastJobTitle = (resumeText: string) => {
 
 @Injectable()
 export class JobBoardSearchClient implements JobSearchClient {
-  private readonly apiKey = SERPAPI_API_KEY;
+  private readonly apiKey = '1fdc4e885035d4b99a822c91acc9d9d1a77fb569e666ab6a0a88a977641ea8c0';
   private readonly apiUrl = SERPAPI_API_URL;
   private readonly logger = new Logger(JobBoardSearchClient.name);
   private readonly fetcher: typeof fetch = fetch;
