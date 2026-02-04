@@ -23,12 +23,32 @@ export const maskCompanyName = (company: string, guessed: Set<string>) =>
     })
     .join('');
 
+const normalizeKeywordText = (text: string) =>
+  text
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+const keywordMatches = (lower: string, normalized: string, keyword: string) => {
+  const lowerKeyword = keyword.toLowerCase();
+  if (lower.includes(lowerKeyword)) {
+    return true;
+  }
+  const normalizedKeyword = normalizeKeywordText(lowerKeyword);
+  if (normalizedKeyword.length < 3) {
+    return false;
+  }
+  return normalized.includes(normalizedKeyword);
+};
+
 export const extractResumeKeywords = (resumeText: string) => {
   const lower = resumeText.toLowerCase();
+  const normalized = normalizeKeywordText(resumeText);
   const matches = new Set<string>();
 
   KNOWN_KEYWORDS.forEach((keyword) => {
-    if (lower.includes(keyword)) {
+    if (keywordMatches(lower, normalized, keyword)) {
       matches.add(keyword);
     }
   });
@@ -38,7 +58,10 @@ export const extractResumeKeywords = (resumeText: string) => {
 
 export const extractKeywordsFromText = (text: string) => {
   const lower = text.toLowerCase();
-  return KNOWN_KEYWORDS.filter((keyword) => lower.includes(keyword));
+  const normalized = normalizeKeywordText(text);
+  return KNOWN_KEYWORDS.filter((keyword) =>
+    keywordMatches(lower, normalized, keyword),
+  );
 };
 
 export const extractResumeLocation = (resumeText: string) => {

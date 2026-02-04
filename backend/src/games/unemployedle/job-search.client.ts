@@ -66,6 +66,13 @@ const normalizeUrl = (value: unknown) => {
   }
 };
 
+const normalizeKeywordText = (text: string) =>
+  text
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
 const extractStateCode = (location: string) => {
   const trimmed = location.trim();
   const match = trimmed.match(/,\s*([A-Z]{2})\b/);
@@ -716,6 +723,7 @@ export class JobBoardSearchClient implements JobSearchClient {
 
   private buildSearchQueries(resumeText: string, keywords: string[]) {
     const lower = resumeText.toLowerCase();
+    const normalizedResume = normalizeKeywordText(resumeText);
     const queries = new Set<string>();
     const normalizedKeywords = Array.from(
       new Set(
@@ -733,10 +741,20 @@ export class JobBoardSearchClient implements JobSearchClient {
     let primaryQuery: string | null = null;
 
     const keywordMatches = normalizedKeywords
-      .map((keyword) => ({
-        keyword,
-        index: lower.indexOf(keyword),
-      }))
+      .map((keyword) => {
+        const directIndex = lower.indexOf(keyword);
+        if (directIndex >= 0) {
+          return { keyword, index: directIndex };
+        }
+        const normalizedKeyword = normalizeKeywordText(keyword);
+        if (normalizedKeyword.length < 3) {
+          return { keyword, index: -1 };
+        }
+        return {
+          keyword,
+          index: normalizedResume.indexOf(normalizedKeyword),
+        };
+      })
       .filter((entry) => entry.index >= 0)
       .sort((a, b) => a.index - b.index);
     const orderedKeywords = keywordMatches.map((entry) => entry.keyword);
@@ -782,15 +800,24 @@ export class JobBoardSearchClient implements JobSearchClient {
       }
     };
 
-    const scoredRules = ROLE_QUERY_RULES.map((rule, index) => ({
-      rule,
-      index,
-      score: rule.keywords.reduce(
+    const scoredRules = ROLE_QUERY_RULES.map((rule, index) => {
+      const score = rule.keywords.reduce(
         (total, term) => total + (hasKeyword(term) ? 1 : 0),
         0,
-      ),
-    }))
-      .filter((entry) => entry.score > 0)
+      );
+      const requiredMatch = rule.requiredKeywords
+        ? rule.requiredKeywords.some((term) => hasKeyword(term))
+        : true;
+      const minScore = rule.minScore ?? 1;
+      return {
+        rule,
+        index,
+        score,
+        requiredMatch,
+        meetsThreshold: score >= minScore,
+      };
+    })
+      .filter((entry) => entry.requiredMatch && entry.meetsThreshold)
       .sort((a, b) => b.score - a.score || a.index - b.index);
 
     const phraseKeywords = orderedKeywords.filter((keyword) =>

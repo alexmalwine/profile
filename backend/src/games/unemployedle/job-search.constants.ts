@@ -1,6 +1,8 @@
 export type QueryRule = {
   query: string;
   keywords: string[];
+  requiredKeywords?: string[];
+  minScore?: number;
 };
 
 export const JOB_BOARD_HOSTS = ['linkedin.com', 'glassdoor.com', 'indeed.com'];
@@ -49,6 +51,7 @@ export const ROLE_QUERY_RULES: QueryRule[] = [
       'gcp',
       'azure',
     ],
+    requiredKeywords: ['devops', 'sre', 'site reliability'],
   },
   {
     query: 'mobile engineer',
