@@ -1,11 +1,5 @@
 import { useState } from 'react'
-import {
-  GAME_TABS,
-  LETTERS,
-  MAX_GUESSES,
-  RESUME_FORMATS,
-} from '../constants/gameConstants'
-import { useResumeFormatter } from '../hooks/useResumeFormatter'
+import { GAME_TABS, LETTERS, MAX_GUESSES } from '../constants/gameConstants'
 import { useUnemployedleGame } from '../hooks/useUnemployedleGame'
 
 const GamesSection = ({ apiStatus, apiStatusLabel }) => {
@@ -30,17 +24,6 @@ const GamesSection = ({ apiStatus, apiStatusLabel }) => {
     handleGuess,
     handleResetGame,
   } = useUnemployedleGame()
-  const {
-    formatterFile,
-    selectedFormat,
-    setSelectedFormat,
-    formatResult,
-    formatError,
-    isFormatting,
-    handleFormatterFileChange,
-    handleFormatResume,
-    handleDownloadFormatted,
-  } = useResumeFormatter()
   const isGenerating = isStarting || isListing
   const isShowingTopJobs = isListing || topJobs.length > 0
   const canRunJobs = Boolean(resumeFile) && !isGenerating
@@ -64,11 +47,6 @@ const GamesSection = ({ apiStatus, apiStatusLabel }) => {
   const gameStatusClass = isGenerating
     ? 'loading'
     : gameState?.status ?? 'ready'
-  const formatterStatusLabel = formatResult ? 'Formatted' : 'Ready'
-  const formatterStatusClass = formatResult ? 'formatted' : 'ready'
-  const selectedFormatMeta = RESUME_FORMATS.find(
-    (format) => format.id === selectedFormat,
-  )
 
   return (
     <section id="games" className="section">
@@ -457,100 +435,6 @@ const GamesSection = ({ apiStatus, apiStatusLabel }) => {
                 </div>
               </div>
             )}
-          </div>
-
-          <div
-            className="game-card"
-            role="tabpanel"
-            id="resume-formatter-panel"
-            aria-labelledby="resume-formatter-tab"
-            hidden={activeGame !== 'resume-formatter'}
-          >
-            <div className="game-header">
-              <div>
-                <h3>Resume Formatter</h3>
-                <p className="muted">
-                  Upload a resume and generate polished formats ready to download.
-                </p>
-              </div>
-              <span className={`status-badge ${formatterStatusClass}`}>
-                {formatterStatusLabel}
-              </span>
-            </div>
-
-            <div className="game-grid">
-              <div className="game-panel">
-                <label className="file-input">
-                  <span>Resume upload</span>
-                  <input
-                    type="file"
-                    accept=".pdf,.doc,.docx,.txt"
-                    onChange={handleFormatterFileChange}
-                  />
-                </label>
-                {formatterFile && (
-                  <p className="file-meta">
-                    Selected file: <strong>{formatterFile.name}</strong>
-                  </p>
-                )}
-
-                <label className="file-input">
-                  <span>Choose a format</span>
-                  <select
-                    className="select-input"
-                    value={selectedFormat}
-                    onChange={(event) => setSelectedFormat(event.target.value)}
-                  >
-                    {RESUME_FORMATS.map((format) => (
-                      <option key={format.id} value={format.id}>
-                        {format.label}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <p className="note">
-                  {selectedFormatMeta?.description ??
-                    'Pick a format to preview and download.'}
-                </p>
-
-                {formatError && (
-                  <p className="status-line error">{formatError}</p>
-                )}
-
-                <div className="game-actions">
-                  <button
-                    type="button"
-                    className="button primary"
-                    onClick={handleFormatResume}
-                    disabled={isFormatting}
-                  >
-                    {isFormatting ? 'Formatting...' : 'Generate format'}
-                  </button>
-                  <button
-                    type="button"
-                    className="button ghost"
-                    onClick={handleDownloadFormatted}
-                    disabled={!formatResult}
-                  >
-                    Download
-                  </button>
-                </div>
-                <p className="note">
-                  Formatting pulls summary, highlights, and skills directly from
-                  your resume.
-                </p>
-              </div>
-
-              <div className="game-panel">
-                <p className="label">Preview</p>
-                <div className="preview-box">
-                  <pre>
-                    {formatResult?.content ??
-                      'Upload a resume and generate a format to preview.'}
-                  </pre>
-                </div>
-              </div>
-            </div>
           </div>
 
           <div

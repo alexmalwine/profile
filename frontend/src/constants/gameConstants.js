@@ -6,7 +6,6 @@ export const API_STATUS_LABELS = {
 
 export const GAME_TABS = [
   { id: 'unemployedle', label: 'Unemployedle' },
-  { id: 'resume-formatter', label: 'Resume Formatter' },
   { id: 'coming-soon', label: 'More soon', disabled: true },
 ]
 
