@@ -42,6 +42,7 @@ const GamesSection = ({ apiStatus, apiStatusLabel }) => {
     handleDownloadFormatted,
   } = useResumeFormatter()
   const isGenerating = isStarting || isListing
+  const isShowingTopJobs = isListing || topJobs.length > 0
   const generationLabel = isStarting
     ? 'Generating your game'
     : isListing
@@ -221,7 +222,7 @@ const GamesSection = ({ apiStatus, apiStatusLabel }) => {
                     type="button"
                     className="button primary"
                     onClick={handleStartGame}
-                    disabled={isStarting}
+                    disabled={isGenerating}
                   >
                     {isStarting ? 'Starting...' : 'Start game'}
                   </button>
@@ -229,7 +230,7 @@ const GamesSection = ({ apiStatus, apiStatusLabel }) => {
                     type="button"
                     className="button ghost"
                     onClick={handleFetchTopJobs}
-                    disabled={isListing}
+                    disabled={isGenerating}
                   >
                     {isListing ? 'Loading...' : 'Get top 10 jobs'}
                   </button>
@@ -267,11 +268,34 @@ const GamesSection = ({ apiStatus, apiStatusLabel }) => {
                   </div>
                 )}
 
-                {topJobs.length > 0 && (
-                  <div className="job-card">
-                    <p className="label">Top 10 matches</p>
-                    {topJobsSummary && <p className="note">{topJobsSummary}</p>}
-                    <div className="job-list">
+              </div>
+
+              {isShowingTopJobs ? (
+                <div className="game-panel job-panel">
+                  <div className="job-panel-header">
+                    <p className="label">Top job matches</p>
+                    {isListing && <span className="status-pill">Searching</span>}
+                  </div>
+                  {isListing && (
+                    <div
+                      className="loading-banner compact"
+                      role="status"
+                      aria-live="polite"
+                    >
+                      <span className="loading-spinner" aria-hidden="true" />
+                      <div>
+                        <p className="loading-title">Finding openings</p>
+                        <p className="loading-subtitle">
+                          Pulling fresh listings and ranking them to your resume.
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                  {!isListing && topJobsSummary && (
+                    <p className="note">{topJobsSummary}</p>
+                  )}
+                  {!isListing && topJobs.length > 0 && (
+                    <div className="job-list expanded">
                       {topJobs.map((job) => (
                         <div key={job.id} className="job-list-item">
                           <div>
@@ -298,103 +322,103 @@ const GamesSection = ({ apiStatus, apiStatusLabel }) => {
                         </div>
                       ))}
                     </div>
-                  </div>
-                )}
-              </div>
-
-              <div className="game-panel">
-                <p className="label">Company to guess</p>
-                <div className="word-display">
-                  {gameState?.maskedCompany ?? '—'}
+                  )}
                 </div>
-                <div className="game-meta">
-                  <div className="meta-item">
-                    <span className="label">Guesses left</span>
-                    <span className="value">
-                      {gameState?.guessesLeft ?? MAX_GUESSES} /{' '}
-                      {gameState?.maxGuesses ?? MAX_GUESSES}
-                    </span>
+              ) : (
+                <div className="game-panel">
+                  <p className="label">Company to guess</p>
+                  <div className="word-display">
+                    {gameState?.maskedCompany ?? '—'}
                   </div>
-                  <div className="meta-item">
-                    <span className="label">Incorrect guesses</span>
-                    <span className="value">
-                      {gameState?.incorrectGuesses?.length ?? 0}
-                    </span>
+                  <div className="game-meta">
+                    <div className="meta-item">
+                      <span className="label">Guesses left</span>
+                      <span className="value">
+                        {gameState?.guessesLeft ?? MAX_GUESSES} /{' '}
+                        {gameState?.maxGuesses ?? MAX_GUESSES}
+                      </span>
+                    </div>
+                    <div className="meta-item">
+                      <span className="label">Incorrect guesses</span>
+                      <span className="value">
+                        {gameState?.incorrectGuesses?.length ?? 0}
+                      </span>
+                    </div>
                   </div>
+                  {gameState?.hint && (
+                    <p className="note">
+                      Hint: {gameState.hint}
+                    </p>
+                  )}
+
+                  <div className="letters-grid" aria-label="Guess a letter">
+                    {LETTERS.map((letter) => {
+                      const isUsed = guessedLetters.includes(letter)
+                      return (
+                        <button
+                          key={letter}
+                          type="button"
+                          className={`letter-button ${isUsed ? 'used' : ''}`}
+                          disabled={!isGameActive || isUsed || isGuessing}
+                          onClick={() => handleGuess(letter)}
+                        >
+                          {letter}
+                        </button>
+                      )
+                    })}
+                  </div>
+
+                  {guessedLetters.length > 0 && (
+                    <p className="note">
+                      Guessed letters: {guessedLetters.join(', ')}
+                    </p>
+                  )}
+                  {gameState?.incorrectGuesses?.length > 0 && (
+                    <p className="note">
+                      Incorrect: {gameState.incorrectGuesses.join(', ')}
+                    </p>
+                  )}
+                  {gameMessage && (
+                    <p className="status-line" role="status">
+                      {gameMessage}
+                    </p>
+                  )}
+
+                  {gameState?.status === 'won' && (
+                    <div className="result-card success">
+                      <h4>Nice work! You matched:</h4>
+                      <p className="result-company">{gameState.revealedCompany}</p>
+                      {gameState.jobUrl && (
+                        <a
+                          className="button primary"
+                          href={gameState.jobUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                        >
+                          View job opening
+                        </a>
+                      )}
+                    </div>
+                  )}
+
+                  {gameState?.status === 'lost' && (
+                    <div className="result-card warning">
+                      <h4>Good try! The company was:</h4>
+                      <p className="result-company">{gameState.revealedCompany}</p>
+                      {gameState.jobUrl && (
+                        <a
+                          className="button ghost"
+                          href={gameState.jobUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                        >
+                          Review the job opening
+                        </a>
+                      )}
+                    </div>
+                  )}
                 </div>
-                {gameState?.hint && (
-                  <p className="note">
-                    Hint: {gameState.hint}
-                  </p>
-                )}
-
-                <div className="letters-grid" aria-label="Guess a letter">
-                  {LETTERS.map((letter) => {
-                    const isUsed = guessedLetters.includes(letter)
-                    return (
-                      <button
-                        key={letter}
-                        type="button"
-                        className={`letter-button ${isUsed ? 'used' : ''}`}
-                        disabled={!isGameActive || isUsed || isGuessing}
-                        onClick={() => handleGuess(letter)}
-                      >
-                        {letter}
-                      </button>
-                    )
-                  })}
-                </div>
-
-                {guessedLetters.length > 0 && (
-                  <p className="note">
-                    Guessed letters: {guessedLetters.join(', ')}
-                  </p>
-                )}
-                {gameState?.incorrectGuesses?.length > 0 && (
-                  <p className="note">
-                    Incorrect: {gameState.incorrectGuesses.join(', ')}
-                  </p>
-                )}
-                {gameMessage && (
-                  <p className="status-line" role="status">
-                    {gameMessage}
-                  </p>
-                )}
-
-                {gameState?.status === 'won' && (
-                  <div className="result-card success">
-                    <h4>Nice work! You matched:</h4>
-                    <p className="result-company">{gameState.revealedCompany}</p>
-                    {gameState.jobUrl && (
-                      <a
-                        className="button primary"
-                        href={gameState.jobUrl}
-                        target="_blank"
-                        rel="noreferrer"
-                      >
-                        View job opening
-                      </a>
-                    )}
-                  </div>
-                )}
-
-                {gameState?.status === 'lost' && (
-                  <div className="result-card warning">
-                    <h4>Good try! The company was:</h4>
-                    <p className="result-company">{gameState.revealedCompany}</p>
-                    {gameState.jobUrl && (
-                      <a
-                        className="button ghost"
-                        href={gameState.jobUrl}
-                        target="_blank"
-                        rel="noreferrer"
-                      >
-                        Review the job opening
-                      </a>
-                    )}
-                  </div>
-                )}
-              </div>
+              )}
             </div>
           </div>
 

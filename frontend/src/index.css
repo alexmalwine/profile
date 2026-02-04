@@ -532,6 +532,10 @@ main {
   background: rgba(251, 191, 36, 0.1);
 }
 
+.loading-banner.compact {
+  margin-top: 0.5rem;
+}
+
 .loading-spinner {
   width: 34px;
   height: 34px;
@@ -751,6 +755,10 @@ main {
   margin-top: 0.75rem;
 }
 
+.job-list.expanded {
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
+
 .job-list-item {
   display: grid;
   gap: 0.5rem;
@@ -769,6 +777,25 @@ main {
   display: flex;
   flex-wrap: wrap;
   gap: 0.5rem;
+}
+
+.job-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.status-pill {
+  font-size: 0.75rem;
+  padding: 0.25rem 0.6rem;
+  border-radius: 999px;
+  border: 1px solid rgba(251, 191, 36, 0.4);
+  background: rgba(251, 191, 36, 0.15);
+  color: #fbbf24;
+  font-weight: 600;
+  letter-spacing: 0.02em;
 }
 
 .job-meta {
