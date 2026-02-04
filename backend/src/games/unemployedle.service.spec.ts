@@ -123,6 +123,14 @@ describe('UnemployedleService', () => {
     ],
   };
 
+  const resumeText = [
+    'Senior Software Engineer',
+    'React TypeScript frontend performance ui',
+    'Backend node docker observability testing',
+    'Fullstack graphql postgres redis rest',
+    'AWS kubernetes python accessibility',
+  ].join(' ');
+
   beforeEach(() => {
     service = new UnemployedleService(
       {
@@ -138,7 +146,7 @@ describe('UnemployedleService', () => {
   const getGame = (gameId: string) => (service as any).games.get(gameId);
 
   it('starts a new game with masked company', async () => {
-    const response = await service.startGame('React TypeScript Node');
+    const response = await service.startGame(resumeText);
 
     expect(response.gameId).toBeDefined();
     expect(response.guessesLeft).toBe(response.maxGuesses);
@@ -150,7 +158,7 @@ describe('UnemployedleService', () => {
   });
 
   it('rejects invalid guesses', async () => {
-    const response = await service.startGame('React TypeScript Node');
+    const response = await service.startGame(resumeText);
 
     expect(() => service.guess(response.gameId, '12')).toThrow(
       BadRequestException,
@@ -158,7 +166,7 @@ describe('UnemployedleService', () => {
   });
 
   it('decrements guesses for incorrect letters', async () => {
-    const response = await service.startGame('React TypeScript Node');
+    const response = await service.startGame(resumeText);
 
     const next = service.guess(response.gameId, 'Q');
 
@@ -167,7 +175,7 @@ describe('UnemployedleService', () => {
   });
 
   it('flags repeated guesses', async () => {
-    const response = await service.startGame('React TypeScript Node');
+    const response = await service.startGame(resumeText);
 
     const first = service.guess(response.gameId, 'Q');
     const second = service.guess(response.gameId, 'Q');
@@ -177,7 +185,7 @@ describe('UnemployedleService', () => {
   });
 
   it('wins when all letters are guessed', async () => {
-    const response = await service.startGame('React TypeScript Node');
+    const response = await service.startGame(resumeText);
     const game = getGame(response.gameId);
 
     const letters = Array.from(
@@ -193,10 +201,10 @@ describe('UnemployedleService', () => {
   });
 
   it('returns a top 10 job list', async () => {
-    const response = await service.getTopJobs('React TypeScript Node');
+    const response = await service.getTopJobs(resumeText);
 
     expect(response.jobs).toHaveLength(10);
-    expect(response.selectionSummary).toContain('top 10');
+    expect(response.selectionSummary).toContain(`top ${response.jobs.length}`);
     response.jobs.forEach((job) => {
       expect(job.company).toBeTruthy();
       expect(job.matchScore).toBeGreaterThanOrEqual(0);

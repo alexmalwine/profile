@@ -14,6 +14,9 @@
   --primary: #6366f1;
   --primary-strong: #4f46e5;
   --accent: #22d3ee;
+  --loading: #fbbf24;
+  --loading-bg: rgba(251, 191, 36, 0.15);
+  --loading-border: rgba(251, 191, 36, 0.45);
   --border: #1f2a3b;
   --shadow: 0 20px 40px rgba(0, 0, 0, 0.35);
   --radius: 16px;
@@ -244,8 +247,8 @@ main {
   width: 100%;
   height: 100%;
   object-fit: cover;
-  object-position: center 20%;
-  transform: scale(1.2);
+  object-position: 62% 58%;
+  transform: scale(1.1);
 }
 
 .name {
@@ -496,6 +499,11 @@ main {
   box-shadow: var(--shadow);
 }
 
+.game-card.is-loading {
+  border-color: var(--loading-border);
+  box-shadow: 0 0 0 1px var(--loading-border), var(--shadow);
+}
+
 .game-card.placeholder {
   display: grid;
   gap: 0.75rem;
@@ -514,6 +522,46 @@ main {
   grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
   gap: 2rem;
   margin-top: 1.5rem;
+}
+
+.game-grid.jobs-only {
+  grid-template-columns: 1fr;
+}
+
+.loading-banner {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem 1.25rem;
+  margin-top: 1.5rem;
+  border-radius: 14px;
+  border: 1px dashed var(--loading-border);
+  background: var(--loading-bg);
+}
+
+.loading-banner.compact {
+  margin-top: 0.5rem;
+}
+
+.loading-spinner {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: 3px solid var(--loading-border);
+  border-top-color: var(--loading);
+  animation: spin 1s linear infinite;
+  flex-shrink: 0;
+}
+
+.loading-title {
+  margin: 0;
+  font-weight: 600;
+}
+
+.loading-subtitle {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.9rem;
 }
 
 .game-panel {
@@ -557,6 +605,12 @@ main {
   border-color: rgba(248, 113, 113, 0.4);
 }
 
+.status-badge.loading {
+  color: var(--loading);
+  background: var(--loading-bg);
+  border-color: var(--loading-border);
+}
+
 .status-badge.in_progress {
   color: var(--accent);
   background: rgba(34, 211, 238, 0.15);
@@ -587,6 +641,11 @@ main {
   margin: 0;
   color: var(--muted);
   font-size: 0.9rem;
+}
+
+.file-meta.compact {
+  font-size: 0.85rem;
+  margin-top: 0.35rem;
 }
 
 .form-group {
@@ -702,10 +761,18 @@ main {
   gap: 0.5rem;
 }
 
+.job-panel.full {
+  width: 100%;
+}
+
 .job-list {
   display: grid;
   gap: 1rem;
   margin-top: 0.75rem;
+}
+
+.job-list.expanded {
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
 }
 
 .job-list-item {
@@ -726,6 +793,31 @@ main {
   display: flex;
   flex-wrap: wrap;
   gap: 0.5rem;
+}
+
+.job-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.job-panel-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.status-pill {
+  font-size: 0.75rem;
+  padding: 0.25rem 0.6rem;
+  border-radius: 999px;
+  border: 1px solid var(--loading-border);
+  background: var(--loading-bg);
+  color: var(--loading);
+  font-weight: 600;
+  letter-spacing: 0.02em;
 }
 
 .job-meta {
@@ -834,6 +926,12 @@ main {
   outline-offset: 3px;
 }
 
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 @media (max-width: 960px) {
   .hero-grid,
   .section-grid {
@@ -885,6 +983,9 @@ main {
     --primary: #4f46e5;
     --primary-strong: #4338ca;
     --accent: #0891b2;
+    --loading: #b45309;
+    --loading-bg: rgba(217, 119, 6, 0.12);
+    --loading-border: rgba(217, 119, 6, 0.35);
     --border: #e2e8f0;
     --shadow: 0 20px 40px rgba(15, 23, 42, 0.12);
   }

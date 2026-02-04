@@ -24,7 +24,7 @@ export const SERPAPI_API_URL =
 export const SERPAPI_API_KEY = process.env.SERPAPI_API_KEY ?? '';
 export const JOB_BOARD_SEARCH_TIMEOUT_MS = parsePositiveNumber(
   process.env.JOB_BOARD_SEARCH_TIMEOUT_MS,
-  8000,
+  15000,
 );
 export const JOB_BOARD_MAX_RESULTS_PER_QUERY = parsePositiveNumber(
   process.env.JOB_BOARD_MAX_RESULTS_PER_QUERY,

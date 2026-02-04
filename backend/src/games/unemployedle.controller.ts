@@ -33,6 +33,101 @@ interface JobSearchOptionsRequest {
   localLocation?: string;
 }
 
+const RESUME_SECTION_MARKERS = [
+  'experience',
+  'work experience',
+  'professional experience',
+  'employment',
+  'employment history',
+  'work history',
+  'education',
+  'skills',
+  'projects',
+  'certifications',
+  'summary',
+  'profile',
+  'objective',
+  'volunteer',
+  'awards',
+  'publications',
+];
+
+const PROFILE_LINK_MARKERS = [
+  'linkedin.com',
+  'github.com',
+  'portfolio',
+  'behance.net',
+  'dribbble.com',
+];
+
+const resumeLineSplit = (resumeText: string) =>
+  resumeText
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+
+const countSectionSignals = (text: string) => {
+  const normalized = text.toLowerCase();
+  return RESUME_SECTION_MARKERS.reduce(
+    (total, marker) => total + (normalized.includes(marker) ? 1 : 0),
+    0,
+  );
+};
+
+const containsProfileLink = (text: string) => {
+  const normalized = text.toLowerCase();
+  return PROFILE_LINK_MARKERS.some((marker) => normalized.includes(marker));
+};
+
+const isLikelyResumeText = (resumeText: string) => {
+  const trimmed = resumeText.trim();
+  if (!trimmed) {
+    return false;
+  }
+
+  const words = trimmed.match(/[A-Za-z0-9]+/g) ?? [];
+  const wordCount = words.length;
+  if (wordCount < 25) {
+    return false;
+  }
+
+  const sectionSignals = countSectionSignals(trimmed);
+  const hasEmail = /[^\s@]+@[^\s@]+\.[^\s@]+/.test(trimmed);
+  const hasPhone = /(\+?\d[\d\s().-]{7,}\d)/.test(trimmed);
+  const hasProfileLink = containsProfileLink(trimmed);
+  const hasDate =
+    /(?:19|20)\d{2}/.test(trimmed) ||
+    /\b(jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)\b/i.test(trimmed);
+  const bulletLines = resumeLineSplit(trimmed).filter((line) =>
+    /^[-*]\s+/.test(line),
+  ).length;
+
+  const signalCount =
+    sectionSignals +
+    (hasEmail ? 1 : 0) +
+    (hasPhone ? 1 : 0) +
+    (hasProfileLink ? 1 : 0) +
+    (hasDate ? 1 : 0) +
+    (bulletLines > 0 ? 1 : 0);
+
+  if (wordCount < 60 && signalCount < 2) {
+    return false;
+  }
+
+  if (
+    wordCount < 90 &&
+    sectionSignals === 0 &&
+    !hasEmail &&
+    !hasPhone &&
+    !hasProfileLink &&
+    !hasDate
+  ) {
+    return false;
+  }
+
+  return true;
+};
+
 @Controller('api/games/unemployedle')
 export class UnemployedleController {
   private readonly logger = new Logger(UnemployedleController.name);
@@ -55,6 +150,7 @@ export class UnemployedleController {
     }
 
     const resumeText = await this.extractResumeText(file);
+    this.assertResumeLooksValid(resumeText);
     return this.unemployedleService.startGame(
       resumeText,
       this.parseJobSearchOptions(body),
@@ -77,6 +173,7 @@ export class UnemployedleController {
     }
 
     const resumeText = await this.extractResumeText(file);
+    this.assertResumeLooksValid(resumeText);
     return this.unemployedleService.getTopJobs(
       resumeText,
       this.parseJobSearchOptions(body),
@@ -149,6 +246,16 @@ export class UnemployedleController {
       .replace(/\n{3,}/g, '\n\n');
 
     return collapsedWhitespace.trim();
+  }
+
+  private assertResumeLooksValid(resumeText: string) {
+    if (isLikelyResumeText(resumeText)) {
+      return;
+    }
+
+    throw new BadRequestException(
+      'That upload does not look like a resume. Please upload a resume with sections like Experience, Education, or Skills.',
+    );
   }
 
   private parseJobSearchOptions(

@@ -32,6 +32,7 @@ describe('ResumeFormatterService', () => {
     expect(result.formatId).toBe('modern');
     expect(result.content).toContain('# Jane Doe');
     expect(result.content).toContain('## Summary');
+    expect(result.content).toContain('Senior Engineer');
     expect(result.fileName).toBe('jane-doe-resume-modern.md');
   });
 
@@ -44,6 +45,7 @@ describe('ResumeFormatterService', () => {
     expect(result.formatId).toBe('classic');
     expect(result.content).toContain('SAM LEE');
     expect(result.content).toContain('SUMMARY');
+    expect(result.content).toContain('Engineering Lead');
     expect(result.fileName).toBe('sam-lee-resume-classic.md');
   });
 
@@ -55,6 +57,7 @@ describe('ResumeFormatterService', () => {
 
     expect(result.formatId).toBe('compact');
     expect(result.content).toContain('Alex Kim | Resume');
+    expect(result.content).toContain('Fullstack Engineer');
     expect(result.fileName).toBe('alex-kim-resume-compact.txt');
   });
 });

@@ -1,8 +1,7 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { FORMATS } from './resume-formatter/constants';
 import {
-  extractSkills,
-  normalizeResumeLines,
+  parseResumeContent,
   sanitizeFileName,
 } from './resume-formatter/helpers';
 import {
@@ -28,31 +27,26 @@ export class ResumeFormatterService {
       throw new BadRequestException('Unknown resume format.');
     }
 
-    const lines = normalizeResumeLines(resumeText);
-    const name = lines[0] ?? 'Candidate Name';
-    const summaryLines = lines.slice(1, 4);
-    const detailLines = lines.slice(4);
-    const summary = summaryLines.join(' ');
-    const bullets = detailLines.length > 0 ? detailLines : summaryLines;
-    const skills = extractSkills(resumeText);
+    const { name, summary, bullets, skills } = parseResumeContent(resumeText);
+    const displayName = name || 'Candidate';
 
     // TODO: Replace with a structured resume parser and LLM-enhanced formatting.
     let content = '';
     switch (format.id) {
       case 'modern':
-        content = formatModern(name, summary, bullets, skills);
+        content = formatModern(displayName, summary, bullets, skills);
         break;
       case 'classic':
-        content = formatClassic(name, summary, bullets, skills);
+        content = formatClassic(displayName, summary, bullets, skills);
         break;
       case 'compact':
-        content = formatCompact(name, summary, bullets, skills);
+        content = formatCompact(displayName, summary, bullets, skills);
         break;
       default:
-        content = formatModern(name, summary, bullets, skills);
+        content = formatModern(displayName, summary, bullets, skills);
     }
 
-    const safeName = sanitizeFileName(name);
+    const safeName = sanitizeFileName(displayName);
 
     return {
       formatId: format.id,

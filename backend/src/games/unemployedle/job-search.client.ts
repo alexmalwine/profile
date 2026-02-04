@@ -21,14 +21,24 @@ import {
   normalizeJobSource,
   toNonEmptyString,
 } from './job-utils';
+import {
+  EXPERIENCE_HEADERS,
+  JOB_BOARD_HOSTS,
+  RESUME_TITLE_TOKENS,
+  ROLE_QUERY_RULES,
+  SECTION_HEADERS,
+  SKILL_HINTS,
+  STATE_FALLBACK_CITIES,
+  STATE_NAME_TO_CODE,
+  TITLE_SEPARATORS,
+  TITLE_TOKENS,
+} from './job-search.constants';
 import type {
   JobSearchClient,
   JobSearchJob,
   JobSearchOptions,
   JobSearchResult,
 } from './types';
-
-const JOB_BOARD_HOSTS = ['linkedin.com', 'glassdoor.com', 'indeed.com'];
 
 const normalizeHostname = (host: string) =>
   host.toLowerCase().replace(/^www\./, '');
@@ -56,9 +66,241 @@ const normalizeUrl = (value: unknown) => {
   }
 };
 
+const normalizeKeywordText = (text: string) =>
+  text
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+const extractStateCode = (location: string) => {
+  const trimmed = location.trim();
+  const match = trimmed.match(/,\s*([A-Z]{2})\b/);
+  if (match) {
+    return match[1];
+  }
+  const lower = trimmed.toLowerCase();
+  const matchedEntry = Object.entries(STATE_NAME_TO_CODE).find(([name]) =>
+    lower.includes(name),
+  );
+  return matchedEntry?.[1] ?? null;
+};
+
+const normalizeCityTokens = (value: string) => {
+  const normalized = value
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, ' ')
+    .replace(/\bst\b/g, 'saint')
+    .replace(/\bft\b/g, 'fort')
+    .replace(/\s+/g, ' ')
+    .trim();
+  return new Set(normalized.split(' ').filter(Boolean));
+};
+
+const scoreCityMatch = (inputTokens: Set<string>, candidateCity: string) => {
+  const candidateTokens = normalizeCityTokens(candidateCity);
+  let score = 0;
+  inputTokens.forEach((token) => {
+    if (candidateTokens.has(token)) {
+      score += 1;
+    }
+  });
+  return { score, tokenCount: candidateTokens.size };
+};
+
+const findFallbackLocation = (location: string) => {
+  const stateCode = extractStateCode(location);
+  if (!stateCode) {
+    return null;
+  }
+  const candidates = STATE_FALLBACK_CITIES[stateCode];
+  if (!candidates || candidates.length === 0) {
+    return null;
+  }
+  const cityPart = location.split(',')[0]?.trim();
+  if (!cityPart) {
+    return candidates[0];
+  }
+  const inputTokens = normalizeCityTokens(cityPart);
+  if (inputTokens.size === 0) {
+    return candidates[0];
+  }
+  let bestCandidate = candidates[0];
+  let bestMatch = scoreCityMatch(inputTokens, candidates[0]);
+  candidates.slice(1).forEach((candidate) => {
+    const match = scoreCityMatch(inputTokens, candidate);
+    if (match.score > bestMatch.score) {
+      bestMatch = match;
+      bestCandidate = candidate;
+    }
+  });
+  const minimumScore = Math.min(2, bestMatch.tokenCount);
+  if (bestMatch.score < minimumScore) {
+    return candidates[0];
+  }
+  return bestCandidate;
+};
+
+const isUnsupportedLocationError = (errorText: string) => {
+  const normalized = errorText.toLowerCase();
+  return (
+    normalized.includes('unsupported') &&
+    normalized.includes('location') &&
+    normalized.includes('parameter')
+  );
+};
+
+const normalizeResumeLines = (resumeText: string) =>
+  resumeText
+    .replace(/\t/g, ' ')
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+
+const normalizeHeaderLine = (line: string) =>
+  line
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+const matchesHeader = (line: string, headers: string[]) => {
+  const normalized = normalizeHeaderLine(line);
+  return headers.some(
+    (header) =>
+      normalized === header || normalized.startsWith(`${header} `),
+  );
+};
+
+const escapeRegExp = (value: string) =>
+  value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+const tokenMatches = (text: string, token: string) => {
+  if (!token) {
+    return false;
+  }
+  if (token.includes(' ')) {
+    return text.includes(token);
+  }
+  return new RegExp(`\\b${escapeRegExp(token)}\\b`).test(text);
+};
+
+const scoreTokens = (text: string, tokens: string[]) =>
+  tokens.reduce((total, token) => total + (tokenMatches(text, token) ? 1 : 0), 0);
+
+const pickBestTitle = (candidates: string[]): string | null => {
+  let bestTitle: string | null = null;
+  let bestScore = 0;
+  let bestLength = Number.POSITIVE_INFINITY;
+
+  for (const candidate of candidates) {
+    const trimmed = candidate.trim();
+    if (!trimmed) {
+      continue;
+    }
+    const lower = trimmed.toLowerCase();
+    const score = scoreTokens(lower, RESUME_TITLE_TOKENS);
+    if (score <= 0) {
+      continue;
+    }
+    const length = trimmed.length;
+    if (
+      !bestTitle ||
+      score > bestScore ||
+      (score === bestScore && length < bestLength)
+    ) {
+      bestTitle = trimmed;
+      bestScore = score;
+      bestLength = length;
+    }
+  }
+
+  return bestTitle;
+};
+
+const cleanJobTitle = (value: string) =>
+  value
+    .replace(/\s*\((?:19|20)\d{2}.*?\)\s*$/i, '')
+    .replace(/\b(19|20)\d{2}\b.*$/g, '')
+    .replace(/\s+(present|current)\b.*$/i, '')
+    .trim();
+
+const extractTitleFromLine = (line: string) => {
+  const sanitized = line.replace(/^[-*•]+/, '').trim();
+  if (!sanitized || sanitized.length > 120) {
+    return null;
+  }
+
+  const lower = sanitized.toLowerCase();
+  if (scoreTokens(lower, RESUME_TITLE_TOKENS) === 0) {
+    return null;
+  }
+
+  const candidates = [sanitized];
+  TITLE_SEPARATORS.forEach((separator) => {
+    if (sanitized.includes(separator)) {
+      const parts = sanitized
+        .split(separator)
+        .map((part) => part.trim())
+        .filter(Boolean);
+      if (parts.length > 1) {
+        candidates.push(...parts);
+      }
+    }
+  });
+
+  const picked = pickBestTitle(candidates);
+  if (!picked) {
+    return null;
+  }
+
+  const cleaned = cleanJobTitle(picked);
+  return cleaned || null;
+};
+
+const extractLastJobTitle = (resumeText: string) => {
+  const lines = normalizeResumeLines(resumeText);
+  if (lines.length === 0) {
+    return null;
+  }
+
+  const experienceIndex = lines.findIndex((line) =>
+    matchesHeader(line, EXPERIENCE_HEADERS),
+  );
+
+  let searchLines = lines;
+  if (experienceIndex >= 0) {
+    let endIndex = lines.length;
+    for (let i = experienceIndex + 1; i < lines.length; i += 1) {
+      if (
+        matchesHeader(lines[i], SECTION_HEADERS) &&
+        !matchesHeader(lines[i], EXPERIENCE_HEADERS)
+      ) {
+        endIndex = i;
+        break;
+      }
+    }
+    searchLines = lines.slice(experienceIndex + 1, endIndex);
+  }
+
+  const candidates = searchLines
+    .map((line) => extractTitleFromLine(line))
+    .filter((candidate): candidate is string => Boolean(candidate));
+
+  if (candidates.length > 0) {
+    return candidates[0];
+  }
+
+  const fallbackCandidates = lines
+    .map((line) => extractTitleFromLine(line))
+    .filter((candidate): candidate is string => Boolean(candidate));
+
+  return fallbackCandidates[0] ?? null;
+};
+
 @Injectable()
 export class JobBoardSearchClient implements JobSearchClient {
-  private readonly apiKey = SERPAPI_API_KEY;
+  private readonly apiKey = '1fdc4e885035d4b99a822c91acc9d9d1a77fb569e666ab6a0a88a977641ea8c0';
   private readonly apiUrl = SERPAPI_API_URL;
   private readonly logger = new Logger(JobBoardSearchClient.name);
   private readonly fetcher: typeof fetch = fetch;
@@ -357,7 +599,10 @@ export class JobBoardSearchClient implements JobSearchClient {
     };
   }
 
-  private async requestSerpApi(params: Record<string, string>) {
+  private async requestSerpApi(
+    params: Record<string, string>,
+    usedFallback = false,
+  ) {
     const searchParams = new URLSearchParams({
       ...params,
       api_key: this.apiKey,
@@ -376,6 +621,23 @@ export class JobBoardSearchClient implements JobSearchClient {
 
       if (!response.ok) {
         const errorText = await response.text();
+        if (
+          response.status === 400 &&
+          !usedFallback &&
+          params.location &&
+          isUnsupportedLocationError(errorText)
+        ) {
+          const fallbackLocation = findFallbackLocation(params.location);
+          if (fallbackLocation && fallbackLocation !== params.location) {
+            this.logger.warn(
+              `SerpAPI unsupported location "${params.location}". Retrying with "${fallbackLocation}".`,
+            );
+            return await this.requestSerpApi(
+              { ...params, location: fallbackLocation },
+              true,
+            );
+          }
+        }
         this.logger.warn(
           `SerpAPI error ${response.status}: ${errorText.slice(0, 200)}`,
         );
@@ -461,54 +723,138 @@ export class JobBoardSearchClient implements JobSearchClient {
 
   private buildSearchQueries(resumeText: string, keywords: string[]) {
     const lower = resumeText.toLowerCase();
+    const normalizedResume = normalizeKeywordText(resumeText);
     const queries = new Set<string>();
-    const isSenior = /(senior|staff|lead|principal)/i.test(lower);
+    const normalizedKeywords = Array.from(
+      new Set(
+        keywords
+          .map((keyword) => keyword.toLowerCase().trim())
+          .filter(Boolean),
+      ),
+    );
+    const isSenior =
+      /\b(senior|staff|principal)\b/i.test(lower) ||
+      /\blead\s+(engineer|developer|designer|manager|analyst|scientist|architect|consultant|specialist|coordinator|administrator|strategist|director)\b/i.test(
+        lower,
+      );
     const prefix = isSenior ? 'senior ' : '';
+    let primaryQuery: string | null = null;
+
+    const keywordMatches = normalizedKeywords
+      .map((keyword) => {
+        const directIndex = lower.indexOf(keyword);
+        if (directIndex >= 0) {
+          return { keyword, index: directIndex };
+        }
+        const normalizedKeyword = normalizeKeywordText(keyword);
+        if (normalizedKeyword.length < 3) {
+          return { keyword, index: -1 };
+        }
+        return {
+          keyword,
+          index: normalizedResume.indexOf(normalizedKeyword),
+        };
+      })
+      .filter((entry) => entry.index >= 0)
+      .sort((a, b) => a.index - b.index);
+    const orderedKeywords = keywordMatches.map((entry) => entry.keyword);
+
+    const keywordHasTerm = (keyword: string, term: string) => {
+      if (keyword === term) {
+        return true;
+      }
+      if (term.includes(' ')) {
+        return keyword.includes(term);
+      }
+      return keyword.split(/\s+/).includes(term);
+    };
+
+    const hasKeyword = (term: string) =>
+      normalizedKeywords.some((keyword) => keywordHasTerm(keyword, term));
+
+    const shouldApplySeniority = (query: string) => {
+      if (!prefix) {
+        return false;
+      }
+      const normalizedQuery = query.toLowerCase();
+      const normalizedPrefix = prefix.trim().toLowerCase();
+      if (normalizedQuery.startsWith(normalizedPrefix)) {
+        return false;
+      }
+      return TITLE_TOKENS.some((token) => normalizedQuery.includes(token));
+    };
 
     const add = (query: string) => {
       const trimmed = query.trim();
-      if (trimmed.length > 0) {
-        queries.add(trimmed);
+      if (!trimmed) {
+        return;
+      }
+      const formatted = shouldApplySeniority(trimmed)
+        ? `${prefix}${trimmed}`
+        : trimmed;
+      if (!queries.has(formatted)) {
+        queries.add(formatted);
+        if (!primaryQuery) {
+          primaryQuery = formatted;
+        }
       }
     };
 
-    const has = (term: string) => lower.includes(term);
-    const hasKeyword = (term: string) =>
-      keywords.some((keyword) => keyword.includes(term));
-
-    if (has('software engineer') || (hasKeyword('software') && hasKeyword('engineering'))) {
-      add(`${prefix}software engineer`);
-    }
-    if (has('frontend') || hasKeyword('frontend') || hasKeyword('react')) {
-      add(`${prefix}frontend engineer react`);
-    }
-    if (has('backend') || hasKeyword('backend') || hasKeyword('node')) {
-      add(`${prefix}backend engineer node`);
-    }
-    if (has('fullstack') || hasKeyword('fullstack') || hasKeyword('full stack')) {
-      add(`${prefix}fullstack engineer`);
-    }
-    if (has('platform') || hasKeyword('devops') || hasKeyword('sre')) {
-      add(`${prefix}platform engineer`);
-    }
-    if (has('mobile') || hasKeyword('react native')) {
-      add(`${prefix}mobile engineer react native`);
-    }
-
-    const skillHints = keywords.filter((keyword) =>
-      ['typescript', 'react', 'node', 'aws', 'kubernetes'].some((term) =>
-        keyword.includes(term),
-      ),
-    );
-    if (skillHints.length > 0) {
-      add(
-        `${prefix}software engineer ${skillHints.slice(0, 2).join(' ')}`.trim(),
+    const scoredRules = ROLE_QUERY_RULES.map((rule, index) => {
+      const score = rule.keywords.reduce(
+        (total, term) => total + (hasKeyword(term) ? 1 : 0),
+        0,
       );
+      const requiredMatch = rule.requiredKeywords
+        ? rule.requiredKeywords.some((term) => hasKeyword(term))
+        : true;
+      const minScore = rule.minScore ?? 1;
+      return {
+        rule,
+        index,
+        score,
+        requiredMatch,
+        meetsThreshold: score >= minScore,
+      };
+    })
+      .filter((entry) => entry.requiredMatch && entry.meetsThreshold)
+      .sort((a, b) => b.score - a.score || a.index - b.index);
+
+    const phraseKeywords = orderedKeywords.filter((keyword) =>
+      keyword.includes(' '),
+    );
+    const titlePhrases = phraseKeywords.filter((keyword) =>
+      TITLE_TOKENS.some((token) => keyword.includes(token)),
+    );
+    const titlePhraseSet = new Set(titlePhrases);
+    const domainPhrases = phraseKeywords.filter(
+      (keyword) => !titlePhraseSet.has(keyword),
+    );
+
+    titlePhrases.slice(0, 2).forEach((keyword) => add(keyword));
+
+    scoredRules.forEach((entry) => add(entry.rule.query));
+
+    domainPhrases.slice(0, 2).forEach((keyword) => add(keyword));
+
+    const skillHints = orderedKeywords.filter((keyword) =>
+      SKILL_HINTS.some((term) => keywordHasTerm(keyword, term)),
+    );
+    const uniqueSkillHints = Array.from(new Set(skillHints)).slice(0, 2);
+    if (primaryQuery && uniqueSkillHints.length > 0) {
+      add(`${primaryQuery} ${uniqueSkillHints.join(' ')}`);
     }
 
     if (queries.size === 0) {
-      add(`${prefix}software engineer`);
-      add(`${prefix}fullstack engineer`);
+      const lastJobTitle = extractLastJobTitle(resumeText);
+      if (lastJobTitle) {
+        add(lastJobTitle);
+      }
+    }
+
+    if (queries.size === 0) {
+      add('software engineer');
+      add('fullstack engineer');
     }
 
     return Array.from(queries);
