@@ -674,6 +674,11 @@ main {
   font-size: 0.95rem;
 }
 
+.text-area {
+  min-height: 110px;
+  resize: vertical;
+}
+
 .game-actions {
   display: flex;
   gap: 1rem;

@@ -1,5 +1,12 @@
 import { useState } from 'react'
-import { GAME_TABS, LETTERS, MAX_GUESSES } from '../constants/gameConstants'
+import {
+  GAME_TABS,
+  LETTERS,
+  MAX_GUESSES,
+  MAX_TRADING_CARD_COMBINATIONS,
+  TRADING_CARD_ART_STYLES,
+} from '../constants/gameConstants'
+import { useCustomTradingCards } from '../hooks/useCustomTradingCards'
 import { useUnemployedleGame } from '../hooks/useUnemployedleGame'
 
 const GamesSection = ({ apiStatus, apiStatusLabel }) => {
@@ -28,6 +35,27 @@ const GamesSection = ({ apiStatus, apiStatusLabel }) => {
     handleGuess,
     handleResetGame,
   } = useUnemployedleGame()
+  const {
+    cardTitlesInput,
+    prefixesInput,
+    theme,
+    artStyle,
+    referenceImages,
+    isGenerating: isGeneratingCards,
+    error: cardsError,
+    downloadUrl,
+    downloadName,
+    cardTitles,
+    prefixCount,
+    totalCombinations,
+    handleCardTitlesChange,
+    handlePrefixesChange,
+    handleThemeChange,
+    handleArtStyleChange,
+    handleReferenceImagesChange,
+    handleGenerateCards,
+    handleReset: handleResetCards,
+  } = useCustomTradingCards()
   const isGenerating = isStarting || isListing
   const isShowingTopJobs = isListing || topJobs.length > 0
   const canRunJobs = Boolean(resumeFile) && !isGenerating
@@ -56,6 +84,25 @@ const GamesSection = ({ apiStatus, apiStatusLabel }) => {
   const gameStatusClass = isGenerating
     ? 'loading'
     : gameState?.status ?? 'ready'
+  const cardsStatusClass = isGeneratingCards
+    ? 'loading'
+    : downloadUrl
+      ? 'formatted'
+      : 'ready'
+  const cardsStatusLabel = isGeneratingCards
+    ? 'Generating'
+    : downloadUrl
+      ? 'Zip ready'
+      : 'Ready'
+  const cardTitleCount = cardTitles.length
+  const isOverCardLimit =
+    totalCombinations > MAX_TRADING_CARD_COMBINATIONS
+  const cardsSummary = totalCombinations
+    ? `${totalCombinations} card${totalCombinations === 1 ? '' : 's'}`
+    : 'No cards yet'
+  const selectedArtStyle = TRADING_CARD_ART_STYLES.find(
+    (style) => style.id === artStyle,
+  )
 
   return (
     <section id="games" className="section">
@@ -457,6 +504,206 @@ const GamesSection = ({ apiStatus, apiStatusLabel }) => {
                 </div>
               </div>
             )}
+          </div>
+
+          <div
+            className={`game-card${isGeneratingCards ? ' is-loading' : ''}`}
+            role="tabpanel"
+            id="custom-trading-cards-panel"
+            aria-labelledby="custom-trading-cards-tab"
+            hidden={activeGame !== 'custom-trading-cards'}
+          >
+            <div className="game-header">
+              <div>
+                <h3>Custom Trading Cards</h3>
+                <p className="muted">
+                  Generate a full trading card set in one batch using an
+                  affordable AI image model.
+                </p>
+              </div>
+              <span className={`status-badge ${cardsStatusClass}`}>
+                {cardsStatusLabel}
+              </span>
+            </div>
+
+            {isGeneratingCards && (
+              <div className="loading-banner compact" role="status" aria-live="polite">
+                <span className="loading-spinner" aria-hidden="true" />
+                <div>
+                  <p className="loading-title">Generating your cards</p>
+                  <p className="loading-subtitle">
+                    We are rendering each card with the selected art style.
+                  </p>
+                </div>
+              </div>
+            )}
+
+            <div className="game-grid">
+              <div className="game-panel">
+                <div className="form-group">
+                  <p className="label">Card titles</p>
+                  <textarea
+                    className="text-input text-area"
+                    placeholder="Charizard&#10;Pikachu&#10;Mewtwo"
+                    rows={4}
+                    value={cardTitlesInput}
+                    disabled={isGeneratingCards}
+                    onChange={handleCardTitlesChange}
+                  />
+                  <p className="note">
+                    Add one title per line. Every prefix combined with every
+                    title becomes a card.
+                  </p>
+                </div>
+
+                <div className="form-group">
+                  <p className="label">Optional prefixes</p>
+                  <textarea
+                    className="text-input text-area"
+                    placeholder="Shiny&#10;Mega"
+                    rows={3}
+                    value={prefixesInput}
+                    disabled={isGeneratingCards}
+                    onChange={handlePrefixesChange}
+                  />
+                  <p className="note">
+                    Leave blank if you only want the base titles.
+                  </p>
+                </div>
+
+                <div className="form-group">
+                  <p className="label">Theme</p>
+                  <input
+                    type="text"
+                    className="text-input"
+                    placeholder="Neon cyber city with storm clouds"
+                    value={theme}
+                    disabled={isGeneratingCards}
+                    onChange={handleThemeChange}
+                  />
+                  <p className="note">
+                    Themes help the AI keep the imagery consistent across the set.
+                  </p>
+                </div>
+
+                <div className="form-group">
+                  <p className="label">Art style</p>
+                  <select
+                    className="select-input"
+                    value={artStyle}
+                    disabled={isGeneratingCards}
+                    onChange={handleArtStyleChange}
+                  >
+                    {TRADING_CARD_ART_STYLES.map((style) => (
+                      <option key={style.id} value={style.id}>
+                        {style.label}
+                      </option>
+                    ))}
+                  </select>
+                  {selectedArtStyle?.description && (
+                    <p className="note">{selectedArtStyle.description}</p>
+                  )}
+                </div>
+
+                <label className="file-input">
+                  <span>Reference images (optional)</span>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    multiple
+                    disabled={isGeneratingCards}
+                    onChange={handleReferenceImagesChange}
+                  />
+                </label>
+                {referenceImages.length > 0 && (
+                  <p className="file-meta">
+                    Selected files: {referenceImages.map((file) => file.name).join(', ')}
+                  </p>
+                )}
+                <p className="note">
+                  File names must match card titles (ex: "Charizard.png").
+                </p>
+
+                {cardsError && <p className="status-line error">{cardsError}</p>}
+
+                <div className="game-actions">
+                  <button
+                    type="button"
+                    className="button primary"
+                    onClick={handleGenerateCards}
+                    disabled={
+                      isGeneratingCards ||
+                      isOverCardLimit ||
+                      cardTitleCount === 0 ||
+                      !theme.trim()
+                    }
+                  >
+                    {isGeneratingCards ? 'Generating...' : 'Generate cards'}
+                  </button>
+                  <button
+                    type="button"
+                    className="button ghost"
+                    onClick={handleResetCards}
+                    disabled={isGeneratingCards}
+                  >
+                    Reset
+                  </button>
+                  {downloadUrl && (
+                    <a
+                      className="button ghost"
+                      href={downloadUrl}
+                      download={downloadName || 'custom-trading-cards.zip'}
+                    >
+                      Download zip
+                    </a>
+                  )}
+                </div>
+                <p className="note">
+                  Limit each request to {MAX_TRADING_CARD_COMBINATIONS} cards to
+                  keep AI costs low.
+                </p>
+              </div>
+
+              <div className="game-panel">
+                <p className="label">Generation summary</p>
+                <div className="game-meta">
+                  <div className="meta-item">
+                    <span className="label">Titles</span>
+                    <span className="value">{cardTitleCount}</span>
+                  </div>
+                  <div className="meta-item">
+                    <span className="label">Prefixes</span>
+                    <span className="value">{prefixCount}</span>
+                  </div>
+                  <div className="meta-item">
+                    <span className="label">Total cards</span>
+                    <span className="value">{totalCombinations || 0}</span>
+                  </div>
+                  <div className="meta-item">
+                    <span className="label">Reference images</span>
+                    <span className="value">{referenceImages.length}</span>
+                  </div>
+                </div>
+                <p className="note">
+                  {cardsSummary} will be generated using the {selectedArtStyle?.label ?? 'selected'} style.
+                </p>
+                {isOverCardLimit && (
+                  <p className="status-line error">
+                    Too many combinations. Reduce titles or prefixes to stay
+                    under {MAX_TRADING_CARD_COMBINATIONS}.
+                  </p>
+                )}
+                {downloadUrl && (
+                  <div className="result-card success">
+                    <h4>Cards ready!</h4>
+                    <p className="note">
+                      Your zip download should start automatically. Use the
+                      download button to grab it again.
+                    </p>
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
 
           <div
