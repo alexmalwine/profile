@@ -161,21 +161,6 @@ const GamesSection = ({ apiStatus, apiStatusLabel }) => {
                     </div>
                   </div>
                   {jobsError && <p className="status-line error">{jobsError}</p>}
-                  {isListing && (
-                    <div
-                      className="loading-banner compact"
-                      role="status"
-                      aria-live="polite"
-                    >
-                      <span className="loading-spinner" aria-hidden="true" />
-                      <div>
-                        <p className="loading-title">Finding openings</p>
-                        <p className="loading-subtitle">
-                          Pulling fresh listings and ranking them to your resume.
-                        </p>
-                      </div>
-                    </div>
-                  )}
                   {!isListing && topJobsSummary && (
                     <p className="note">{topJobsSummary}</p>
                   )}
