@@ -242,9 +242,36 @@ export class UnemployedleService {
       })
       .sort((a, b) => b.overallScore - a.overallScore);
 
-    const diversifiedJobs = this.applyCompanyDiversity(rankedJobs).slice(0, 10);
+    const thresholdedJobs = this.applyMatchThreshold(rankedJobs);
+    const diversifiedJobs = this.applyCompanyDiversity(thresholdedJobs).slice(
+      0,
+      10,
+    );
+
+    if (diversifiedJobs.length === 0) {
+      this.logger.warn('No job matches met the minimum match threshold.');
+      throw new ServiceUnavailableException('No strong job matches found.');
+    }
 
     return { rankedJobs: diversifiedJobs, searchResult };
+  }
+
+  private applyMatchThreshold(jobs: GameState['job'][]) {
+    const thresholds = [0.75, 0.7, 0.65, 0.6];
+    const desiredCount = 10;
+    let filtered: GameState['job'][] = [];
+
+    thresholds.forEach((threshold) => {
+      if (filtered.length >= desiredCount) {
+        return;
+      }
+      const matches = jobs.filter((job) => job.matchScore >= threshold);
+      if (matches.length > 0) {
+        filtered = matches;
+      }
+    });
+
+    return filtered;
   }
 
   private buildStartResponse(
