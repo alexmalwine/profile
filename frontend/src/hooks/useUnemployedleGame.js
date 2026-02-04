@@ -1,6 +1,6 @@
 import { useState } from 'react'
 
-const DEFAULT_TOP_JOBS_VISIBLE_COUNT = 5
+const DEFAULT_TOP_JOBS_VISIBLE_COUNT = 4
 
 export const useUnemployedleGame = () => {
   const [resumeFile, setResumeFile] = useState(null)
