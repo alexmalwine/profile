@@ -98,7 +98,7 @@ const scoreCityMatch = (inputTokens: Set<string>, candidateCity: string) => {
       score += 1;
     }
   });
-  return score;
+  return { score, tokenCount: candidateTokens.size };
 };
 
 const findFallbackLocation = (location: string) => {
@@ -119,14 +119,18 @@ const findFallbackLocation = (location: string) => {
     return candidates[0];
   }
   let bestCandidate = candidates[0];
-  let bestScore = scoreCityMatch(inputTokens, candidates[0]);
+  let bestMatch = scoreCityMatch(inputTokens, candidates[0]);
   candidates.slice(1).forEach((candidate) => {
-    const score = scoreCityMatch(inputTokens, candidate);
-    if (score > bestScore) {
-      bestScore = score;
+    const match = scoreCityMatch(inputTokens, candidate);
+    if (match.score > bestMatch.score) {
+      bestMatch = match;
       bestCandidate = candidate;
     }
   });
+  const minimumScore = Math.min(2, bestMatch.tokenCount);
+  if (bestMatch.score < minimumScore) {
+    return candidates[0];
+  }
   return bestCandidate;
 };
 
