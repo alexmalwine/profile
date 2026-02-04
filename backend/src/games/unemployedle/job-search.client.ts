@@ -507,6 +507,144 @@ const normalizeUrl = (value: unknown) => {
   }
 };
 
+const STATE_FALLBACK_CITIES: Record<string, string> = {
+  AL: 'Birmingham, AL',
+  AK: 'Anchorage, AK',
+  AZ: 'Phoenix, AZ',
+  AR: 'Little Rock, AR',
+  CA: 'Los Angeles, CA',
+  CO: 'Denver, CO',
+  CT: 'Hartford, CT',
+  DE: 'Wilmington, DE',
+  FL: 'Miami, FL',
+  GA: 'Atlanta, GA',
+  HI: 'Honolulu, HI',
+  ID: 'Boise, ID',
+  IL: 'Chicago, IL',
+  IN: 'Indianapolis, IN',
+  IA: 'Des Moines, IA',
+  KS: 'Wichita, KS',
+  KY: 'Louisville, KY',
+  LA: 'New Orleans, LA',
+  ME: 'Portland, ME',
+  MD: 'Baltimore, MD',
+  MA: 'Boston, MA',
+  MI: 'Detroit, MI',
+  MN: 'Minneapolis, MN',
+  MS: 'Jackson, MS',
+  MO: 'St. Louis, MO',
+  MT: 'Billings, MT',
+  NE: 'Omaha, NE',
+  NV: 'Las Vegas, NV',
+  NH: 'Manchester, NH',
+  NJ: 'Newark, NJ',
+  NM: 'Albuquerque, NM',
+  NY: 'New York, NY',
+  NC: 'Charlotte, NC',
+  ND: 'Fargo, ND',
+  OH: 'Columbus, OH',
+  OK: 'Oklahoma City, OK',
+  OR: 'Portland, OR',
+  PA: 'Philadelphia, PA',
+  RI: 'Providence, RI',
+  SC: 'Charleston, SC',
+  SD: 'Sioux Falls, SD',
+  TN: 'Nashville, TN',
+  TX: 'Dallas, TX',
+  UT: 'Salt Lake City, UT',
+  VT: 'Burlington, VT',
+  VA: 'Richmond, VA',
+  WA: 'Seattle, WA',
+  WV: 'Charleston, WV',
+  WI: 'Milwaukee, WI',
+  WY: 'Cheyenne, WY',
+  DC: 'Washington, DC',
+};
+
+const STATE_NAME_TO_CODE: Record<string, string> = {
+  alabama: 'AL',
+  alaska: 'AK',
+  arizona: 'AZ',
+  arkansas: 'AR',
+  california: 'CA',
+  colorado: 'CO',
+  connecticut: 'CT',
+  delaware: 'DE',
+  florida: 'FL',
+  georgia: 'GA',
+  hawaii: 'HI',
+  idaho: 'ID',
+  illinois: 'IL',
+  indiana: 'IN',
+  iowa: 'IA',
+  kansas: 'KS',
+  kentucky: 'KY',
+  louisiana: 'LA',
+  maine: 'ME',
+  maryland: 'MD',
+  massachusetts: 'MA',
+  michigan: 'MI',
+  minnesota: 'MN',
+  mississippi: 'MS',
+  missouri: 'MO',
+  montana: 'MT',
+  nebraska: 'NE',
+  nevada: 'NV',
+  'new hampshire': 'NH',
+  'new jersey': 'NJ',
+  'new mexico': 'NM',
+  'new york': 'NY',
+  'north carolina': 'NC',
+  'north dakota': 'ND',
+  ohio: 'OH',
+  oklahoma: 'OK',
+  oregon: 'OR',
+  pennsylvania: 'PA',
+  'rhode island': 'RI',
+  'south carolina': 'SC',
+  'south dakota': 'SD',
+  tennessee: 'TN',
+  texas: 'TX',
+  utah: 'UT',
+  vermont: 'VT',
+  virginia: 'VA',
+  washington: 'WA',
+  'west virginia': 'WV',
+  wisconsin: 'WI',
+  wyoming: 'WY',
+  'district of columbia': 'DC',
+};
+
+const extractStateCode = (location: string) => {
+  const trimmed = location.trim();
+  const match = trimmed.match(/,\s*([A-Z]{2})\b/);
+  if (match) {
+    return match[1];
+  }
+  const lower = trimmed.toLowerCase();
+  const matchedEntry = Object.entries(STATE_NAME_TO_CODE).find(([name]) =>
+    lower.includes(name),
+  );
+  return matchedEntry?.[1] ?? null;
+};
+
+const findFallbackLocation = (location: string) => {
+  const stateCode = extractStateCode(location);
+  if (!stateCode) {
+    return null;
+  }
+  return STATE_FALLBACK_CITIES[stateCode] ?? null;
+};
+
+const isUnsupportedLocationError = (errorText: string) => {
+  const normalized = errorText.toLowerCase();
+  return (
+    normalized.includes('unsupported') &&
+    normalized.includes('location') &&
+    normalized.includes('parameter')
+  );
+};
+
 const normalizeResumeLines = (resumeText: string) =>
   resumeText
     .replace(/\t/g, ' ')
@@ -952,7 +1090,10 @@ export class JobBoardSearchClient implements JobSearchClient {
     };
   }
 
-  private async requestSerpApi(params: Record<string, string>) {
+  private async requestSerpApi(
+    params: Record<string, string>,
+    usedFallback = false,
+  ) {
     const searchParams = new URLSearchParams({
       ...params,
       api_key: this.apiKey,
@@ -971,6 +1112,23 @@ export class JobBoardSearchClient implements JobSearchClient {
 
       if (!response.ok) {
         const errorText = await response.text();
+        if (
+          response.status === 400 &&
+          !usedFallback &&
+          params.location &&
+          isUnsupportedLocationError(errorText)
+        ) {
+          const fallbackLocation = findFallbackLocation(params.location);
+          if (fallbackLocation && fallbackLocation !== params.location) {
+            this.logger.warn(
+              `SerpAPI unsupported location "${params.location}". Retrying with "${fallbackLocation}".`,
+            );
+            return await this.requestSerpApi(
+              { ...params, location: fallbackLocation },
+              true,
+            );
+          }
+        }
         this.logger.warn(
           `SerpAPI error ${response.status}: ${errorText.slice(0, 200)}`,
         );
