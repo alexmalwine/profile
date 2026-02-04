@@ -43,6 +43,9 @@ const GamesSection = ({ apiStatus, apiStatusLabel }) => {
   } = useResumeFormatter()
   const isGenerating = isStarting || isListing
   const isShowingTopJobs = isListing || topJobs.length > 0
+  const canRunJobs = Boolean(resumeFile) && !isGenerating
+  const topJobsLabel =
+    topJobs.length > 0 ? `Top job matches (${topJobs.length})` : 'Top job matches'
   const generationLabel = isStarting
     ? 'Generating your game'
     : isListing
@@ -140,142 +143,46 @@ const GamesSection = ({ apiStatus, apiStatusLabel }) => {
               </div>
             )}
 
-            <div className="game-grid">
-              <div className="game-panel">
-                <label className="file-input">
-                  <span>Resume upload</span>
-                  <input
-                    type="file"
-                    accept=".pdf,.doc,.docx,.txt"
-                    onChange={handleResumeChange}
-                    disabled={isGenerating}
-                  />
-                </label>
-                {resumeFile && (
-                  <p className="file-meta">
-                    Selected file: <strong>{resumeFile.name}</strong>
-                  </p>
-                )}
-                <div className="form-group">
-                  <p className="label">Job location filters</p>
-                  <label className="checkbox">
-                    <input
-                      type="checkbox"
-                      checked={locationPreferences.includeRemote}
-                      disabled={isGenerating}
-                      onChange={(event) =>
-                        setLocationPreferences((previous) => ({
-                          ...previous,
-                          includeRemote: event.target.checked,
-                        }))
-                      }
-                    />
-                    <span>Remote</span>
-                  </label>
-                  <label className="checkbox">
-                    <input
-                      type="checkbox"
-                      checked={locationPreferences.includeLocal}
-                      disabled={isGenerating}
-                      onChange={(event) =>
-                        setLocationPreferences((previous) => ({
-                          ...previous,
-                          includeLocal: event.target.checked,
-                        }))
-                      }
-                    />
-                    <span>Local (near resume location)</span>
-                  </label>
-                  <label className="checkbox">
-                    <input
-                      type="checkbox"
-                      checked={locationPreferences.includeSpecific}
-                      disabled={isGenerating}
-                      onChange={(event) =>
-                        setLocationPreferences((previous) => ({
-                          ...previous,
-                          includeSpecific: event.target.checked,
-                        }))
-                      }
-                    />
-                    <span>Specific location</span>
-                  </label>
-                  {locationPreferences.includeSpecific && (
-                    <input
-                      type="text"
-                      className="text-input"
-                      placeholder="City, State or Country"
-                      value={locationPreferences.specificLocation}
-                      disabled={isGenerating}
-                      onChange={(event) =>
-                        setLocationPreferences((previous) => ({
-                          ...previous,
-                          specificLocation: event.target.value,
-                        }))
-                      }
-                    />
-                  )}
-                </div>
-                {startError && <p className="status-line error">{startError}</p>}
-                <div className="game-actions">
-                  <button
-                    type="button"
-                    className="button primary"
-                    onClick={handleStartGame}
-                    disabled={isGenerating}
-                  >
-                    {isStarting ? 'Starting...' : 'Start game'}
-                  </button>
-                  <button
-                    type="button"
-                    className="button ghost"
-                    onClick={handleFetchTopJobs}
-                    disabled={isGenerating}
-                  >
-                    {isListing ? 'Loading...' : 'Get top 10 jobs'}
-                  </button>
-                  {(gameState || topJobs.length > 0) && (
-                    <button
-                      type="button"
-                      className="button ghost"
-                      onClick={handleResetGame}
-                    >
-                      Reset
-                    </button>
-                  )}
-                </div>
-                <p className="note">
-                  Job matching is powered by ChatGPT and live job board queries
-                  based on your resume.
-                </p>
-                {jobsError && <p className="status-line error">{jobsError}</p>}
-
-                {gameState?.job && (
-                  <div className="job-card">
-                    <p className="label">Selected role</p>
-                    <h4>{gameState.job.title}</h4>
-                    <p className="muted">
-                      {gameState.job.location} · {gameState.job.source}
-                    </p>
-                    <div className="job-meta">
-                      <span>Match {gameState.job.matchScore}%</span>
-                      <span>Rating {gameState.job.rating}</span>
-                    </div>
-                    <p className="muted">
-                      Company: {gameState.job.companyMasked}
-                    </p>
-                    <p className="note">{gameState.selectionSummary}</p>
-                  </div>
-                )}
-
-              </div>
-
-              {isShowingTopJobs ? (
-                <div className="game-panel job-panel">
+            {isShowingTopJobs ? (
+              <div className="game-grid jobs-only">
+                <div className="game-panel job-panel full">
                   <div className="job-panel-header">
-                    <p className="label">Top job matches</p>
-                    {isListing && <span className="status-pill">Searching</span>}
+                    <div>
+                      <p className="label">{topJobsLabel}</p>
+                      {resumeFile && (
+                        <p className="file-meta compact">
+                          Using {resumeFile.name}
+                        </p>
+                      )}
+                    </div>
+                    <div className="job-panel-actions">
+                      <button
+                        type="button"
+                        className="button ghost"
+                        onClick={handleStartGame}
+                        disabled={!canRunJobs}
+                      >
+                        Start game
+                      </button>
+                      <button
+                        type="button"
+                        className="button primary"
+                        onClick={handleFetchTopJobs}
+                        disabled={!canRunJobs}
+                      >
+                        {isListing ? 'Loading...' : 'Get top jobs'}
+                      </button>
+                      <button
+                        type="button"
+                        className="button ghost"
+                        onClick={handleResetGame}
+                        disabled={isGenerating}
+                      >
+                        New search
+                      </button>
+                    </div>
                   </div>
+                  {jobsError && <p className="status-line error">{jobsError}</p>}
                   {isListing && (
                     <div
                       className="loading-banner compact"
@@ -324,7 +231,137 @@ const GamesSection = ({ apiStatus, apiStatusLabel }) => {
                     </div>
                   )}
                 </div>
-              ) : (
+              </div>
+            ) : (
+              <div className="game-grid">
+                <div className="game-panel">
+                  <label className="file-input">
+                    <span>Resume upload</span>
+                    <input
+                      type="file"
+                      accept=".pdf,.doc,.docx,.txt"
+                      onChange={handleResumeChange}
+                      disabled={isGenerating}
+                    />
+                  </label>
+                  {resumeFile && (
+                    <p className="file-meta">
+                      Selected file: <strong>{resumeFile.name}</strong>
+                    </p>
+                  )}
+                  <div className="form-group">
+                    <p className="label">Job location filters</p>
+                    <label className="checkbox">
+                      <input
+                        type="checkbox"
+                        checked={locationPreferences.includeRemote}
+                        disabled={isGenerating}
+                        onChange={(event) =>
+                          setLocationPreferences((previous) => ({
+                            ...previous,
+                            includeRemote: event.target.checked,
+                          }))
+                        }
+                      />
+                      <span>Remote</span>
+                    </label>
+                    <label className="checkbox">
+                      <input
+                        type="checkbox"
+                        checked={locationPreferences.includeLocal}
+                        disabled={isGenerating}
+                        onChange={(event) =>
+                          setLocationPreferences((previous) => ({
+                            ...previous,
+                            includeLocal: event.target.checked,
+                          }))
+                        }
+                      />
+                      <span>Local (near resume location)</span>
+                    </label>
+                    <label className="checkbox">
+                      <input
+                        type="checkbox"
+                        checked={locationPreferences.includeSpecific}
+                        disabled={isGenerating}
+                        onChange={(event) =>
+                          setLocationPreferences((previous) => ({
+                            ...previous,
+                            includeSpecific: event.target.checked,
+                          }))
+                        }
+                      />
+                      <span>Specific location</span>
+                    </label>
+                    {locationPreferences.includeSpecific && (
+                      <input
+                        type="text"
+                        className="text-input"
+                        placeholder="City, State or Country"
+                        value={locationPreferences.specificLocation}
+                        disabled={isGenerating}
+                        onChange={(event) =>
+                          setLocationPreferences((previous) => ({
+                            ...previous,
+                            specificLocation: event.target.value,
+                          }))
+                        }
+                      />
+                    )}
+                  </div>
+                  {startError && <p className="status-line error">{startError}</p>}
+                  <div className="game-actions">
+                    <button
+                      type="button"
+                      className="button primary"
+                      onClick={handleStartGame}
+                      disabled={isGenerating}
+                    >
+                      {isStarting ? 'Starting...' : 'Start game'}
+                    </button>
+                    <button
+                      type="button"
+                      className="button ghost"
+                      onClick={handleFetchTopJobs}
+                      disabled={isGenerating}
+                    >
+                      {isListing ? 'Loading...' : 'Get top jobs'}
+                    </button>
+                    {(gameState || topJobs.length > 0) && (
+                      <button
+                        type="button"
+                        className="button ghost"
+                        onClick={handleResetGame}
+                      >
+                        Reset
+                      </button>
+                    )}
+                  </div>
+                  <p className="note">
+                    Job matching is powered by ChatGPT and live job board queries
+                    based on your resume.
+                  </p>
+                  {jobsError && <p className="status-line error">{jobsError}</p>}
+
+                  {gameState?.job && (
+                    <div className="job-card">
+                      <p className="label">Selected role</p>
+                      <h4>{gameState.job.title}</h4>
+                      <p className="muted">
+                        {gameState.job.location} · {gameState.job.source}
+                      </p>
+                      <div className="job-meta">
+                        <span>Match {gameState.job.matchScore}%</span>
+                        <span>Rating {gameState.job.rating}</span>
+                      </div>
+                      <p className="muted">
+                        Company: {gameState.job.companyMasked}
+                      </p>
+                      <p className="note">{gameState.selectionSummary}</p>
+                    </div>
+                  )}
+                </div>
+
                 <div className="game-panel">
                   <p className="label">Company to guess</p>
                   <div className="word-display">
@@ -418,8 +455,8 @@ const GamesSection = ({ apiStatus, apiStatusLabel }) => {
                     </div>
                   )}
                 </div>
-              )}
-            </div>
+              </div>
+            )}
           </div>
 
           <div

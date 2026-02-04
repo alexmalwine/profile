@@ -204,7 +204,7 @@ describe('UnemployedleService', () => {
     const response = await service.getTopJobs(resumeText);
 
     expect(response.jobs).toHaveLength(10);
-    expect(response.selectionSummary).toContain('top 10');
+    expect(response.selectionSummary).toContain(`top ${response.jobs.length}`);
     response.jobs.forEach((job) => {
       expect(job.company).toBeTruthy();
       expect(job.matchScore).toBeGreaterThanOrEqual(0);

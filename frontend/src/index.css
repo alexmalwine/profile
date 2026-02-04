@@ -524,6 +524,10 @@ main {
   margin-top: 1.5rem;
 }
 
+.game-grid.jobs-only {
+  grid-template-columns: 1fr;
+}
+
 .loading-banner {
   display: flex;
   align-items: center;
@@ -639,6 +643,11 @@ main {
   font-size: 0.9rem;
 }
 
+.file-meta.compact {
+  font-size: 0.85rem;
+  margin-top: 0.35rem;
+}
+
 .form-group {
   display: grid;
   gap: 0.65rem;
@@ -752,6 +761,10 @@ main {
   gap: 0.5rem;
 }
 
+.job-panel.full {
+  width: 100%;
+}
+
 .job-list {
   display: grid;
   gap: 1rem;
@@ -788,6 +801,12 @@ main {
   justify-content: space-between;
   gap: 1rem;
   flex-wrap: wrap;
+}
+
+.job-panel-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
 }
 
 .status-pill {

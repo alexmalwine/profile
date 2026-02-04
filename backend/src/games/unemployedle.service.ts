@@ -85,12 +85,15 @@ export class UnemployedleService {
     );
     const selectedJob =
       rankedJobs[Math.floor(Math.random() * rankedJobs.length)];
+    const matchCount = rankedJobs.length;
 
     const guessedLetters = new Set<string>();
     const maskedCompany = maskCompanyName(selectedJob.company, guessedLetters);
     const selectionSummary = buildSelectionSummary(
       searchResult,
-      'Selected a random company from the top 10 matches.',
+      `Selected a random company from the top ${matchCount} match${
+        matchCount === 1 ? '' : 'es'
+      }.`,
     );
 
     const game: GameState = {
@@ -120,10 +123,11 @@ export class UnemployedleService {
       resumeText,
       options,
     );
+    const matchCount = rankedJobs.length;
     return {
       selectionSummary: buildSelectionSummary(
         searchResult,
-        'Showing the top 10 matches.',
+        `Showing the top ${matchCount} match${matchCount === 1 ? '' : 'es'}.`,
       ),
       jobs: rankedJobs.map((job) => ({
         id: job.id,
