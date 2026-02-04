@@ -17,7 +17,6 @@ describe('UnemployedleService', () => {
         title: 'Senior Frontend Engineer',
         location: 'Remote - US',
         source: 'LinkedIn',
-        rating: 4.6,
         keywords: ['react', 'typescript', 'frontend', 'performance', 'ui'],
         url: 'https://example.com/jobs/atlas-systems-senior-frontend',
       },
@@ -26,7 +25,6 @@ describe('UnemployedleService', () => {
         title: 'Staff Software Engineer, Platform',
         location: 'Seattle, WA',
         source: 'Glassdoor',
-        rating: 4.4,
         keywords: ['backend', 'node', 'docker', 'observability', 'testing'],
         url: 'https://example.com/jobs/northwind-staff-platform',
       },
@@ -35,7 +33,6 @@ describe('UnemployedleService', () => {
         title: 'Fullstack Engineer',
         location: 'New York, NY',
         source: 'Fortune 500',
-        rating: 4.1,
         keywords: ['fullstack', 'react', 'node', 'postgres', 'graphql'],
         url: 'https://example.com/jobs/venture-harbor-fullstack',
       },
@@ -44,7 +41,6 @@ describe('UnemployedleService', () => {
         title: 'Software Engineer, Developer Experience',
         location: 'Remote - Americas',
         source: 'Company Careers',
-        rating: 4.8,
         keywords: ['typescript', 'testing', 'observability', 'frontend'],
         url: 'https://example.com/jobs/aurora-labs-dx',
       },
@@ -53,7 +49,6 @@ describe('UnemployedleService', () => {
         title: 'Backend Engineer',
         location: 'Chicago, IL',
         source: 'LinkedIn',
-        rating: 4.0,
         keywords: ['backend', 'node', 'postgres', 'redis', 'rest'],
         url: 'https://example.com/jobs/silverline-backend',
       },
@@ -62,7 +57,6 @@ describe('UnemployedleService', () => {
         title: 'Frontend Engineer',
         location: 'Austin, TX',
         source: 'Glassdoor',
-        rating: 4.2,
         keywords: ['react', 'javascript', 'ui', 'accessibility'],
         url: 'https://example.com/jobs/evergreen-frontend',
       },
@@ -71,7 +65,6 @@ describe('UnemployedleService', () => {
         title: 'Software Engineer, Growth',
         location: 'Remote - Global',
         source: 'Fortune 500',
-        rating: 4.3,
         keywords: ['frontend', 'performance', 'testing', 'react'],
         url: 'https://example.com/jobs/pioneer-growth',
       },
@@ -80,7 +73,6 @@ describe('UnemployedleService', () => {
         title: 'Fullstack Engineer, Integrations',
         location: 'Boston, MA',
         source: 'Company Careers',
-        rating: 4.5,
         keywords: ['fullstack', 'node', 'rest', 'graphql', 'typescript'],
         url: 'https://example.com/jobs/nimbus-integrations',
       },
@@ -89,7 +81,6 @@ describe('UnemployedleService', () => {
         title: 'Platform Engineer',
         location: 'San Francisco, CA',
         source: 'LinkedIn',
-        rating: 4.7,
         keywords: ['backend', 'kubernetes', 'docker', 'aws', 'observability'],
         url: 'https://example.com/jobs/helios-platform',
       },
@@ -98,7 +89,6 @@ describe('UnemployedleService', () => {
         title: 'Software Engineer, Data Platform',
         location: 'Denver, CO',
         source: 'Glassdoor',
-        rating: 4.1,
         keywords: ['backend', 'aws', 'postgres', 'testing', 'python'],
         url: 'https://example.com/jobs/summit-data-platform',
       },
@@ -107,7 +97,6 @@ describe('UnemployedleService', () => {
         title: 'Senior Frontend Engineer, Design Systems',
         location: 'Remote - US',
         source: 'Company Careers',
-        rating: 4.6,
         keywords: ['react', 'frontend', 'ui', 'accessibility', 'typescript'],
         url: 'https://example.com/jobs/blue-orchid-design-systems',
       },
@@ -116,7 +105,6 @@ describe('UnemployedleService', () => {
         title: 'Software Engineer, Core Services',
         location: 'Atlanta, GA',
         source: 'Fortune 500',
-        rating: 4.0,
         keywords: ['backend', 'node', 'rest', 'docker', 'testing'],
         url: 'https://example.com/jobs/ironwood-core-services',
       },
@@ -200,11 +188,12 @@ describe('UnemployedleService', () => {
     expect(last.status).toBe('won');
   });
 
-  it('returns a top 10 job list', async () => {
+  it('returns a top job list', async () => {
     const response = await service.getTopJobs(resumeText);
 
-    expect(response.jobs).toHaveLength(10);
-    expect(response.selectionSummary).toContain(`top ${response.jobs.length}`);
+    expect(response.jobs.length).toBeGreaterThan(0);
+    expect(response.jobs.length).toBeLessThanOrEqual(30);
+    expect(response.selectionSummary).toContain('Showing');
     response.jobs.forEach((job) => {
       expect(job.company).toBeTruthy();
       expect(job.matchScore).toBeGreaterThanOrEqual(0);

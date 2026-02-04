@@ -14,7 +14,6 @@ export interface JobOpening {
   title: string;
   location: string;
   source: JobSource;
-  rating: number;
   keywords: string[];
   url: string;
   matchScoreHint?: number;
@@ -54,7 +53,6 @@ export interface StartResponse {
     title: string;
     location: string;
     source: JobSource;
-    rating: number;
     matchScore: number;
     companyMasked: string;
   };
@@ -77,7 +75,6 @@ export interface TopJobsResponse {
     title: string;
     location: string;
     source: JobSource;
-    rating: number;
     matchScore: number;
     url: string;
   }>;
@@ -88,7 +85,6 @@ export interface JobSearchJob {
   title?: string;
   location?: string;
   source?: string;
-  rating?: number;
   keywords?: string[] | string;
   companyUrl?: string | null;
   sourceUrl?: string | null;
@@ -121,7 +117,11 @@ export interface JobRanking {
 }
 
 export interface JobRanker {
-  rankJobs(resumeText: string, jobs: JobOpening[]): Promise<JobRanking[]>;
+  rankJobs(
+    resumeText: string,
+    jobs: JobOpening[],
+    desiredJobTitle?: string,
+  ): Promise<JobRanking[]>;
 }
 
 export interface JobSearchOptions {
@@ -129,6 +129,7 @@ export interface JobSearchOptions {
   includeLocal?: boolean;
   specificLocation?: string | null;
   localLocation?: string | null;
+  desiredJobTitle?: string | null;
 }
 
 export interface CachedJobSearch {

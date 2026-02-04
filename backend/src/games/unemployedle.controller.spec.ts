@@ -82,7 +82,6 @@ describe('UnemployedleController', () => {
         title: 'Software Engineer',
         location: 'Remote',
         source: 'LinkedIn',
-        rating: 4.3,
         matchScore: 78,
         companyMasked: '___',
       },
@@ -107,6 +106,7 @@ describe('UnemployedleController', () => {
         includeLocal: false,
         specificLocation: 'Chicago, IL',
         localLocation: null,
+        desiredJobTitle: null,
       },
     );
   });

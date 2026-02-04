@@ -31,6 +31,7 @@ interface JobSearchOptionsRequest {
   includeSpecific?: string;
   specificLocation?: string;
   localLocation?: string;
+  desiredJobTitle?: string;
 }
 
 const RESUME_SECTION_MARKERS = [
@@ -273,12 +274,14 @@ export class UnemployedleController {
         ? body.specificLocation?.trim()
         : null;
     const localLocation = body.localLocation?.trim();
+    const desiredJobTitle = body.desiredJobTitle?.trim();
 
     return {
       includeRemote,
       includeLocal,
       specificLocation,
       localLocation: localLocation || null,
+      desiredJobTitle: desiredJobTitle || null,
     };
   }
 

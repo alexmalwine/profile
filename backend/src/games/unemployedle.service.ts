@@ -17,9 +17,9 @@ import { ChatGptJobRanker } from './unemployedle/job-ranker.client';
 import {
   buildJobId,
   buildSelectionSummary,
+  buildResumeProfile,
   clampNumber,
   computeMatchScore,
-  extractResumeKeywords,
   extractResumeLocation,
   maskCompanyName,
   normalizeCompanyKey,
@@ -39,14 +39,28 @@ import {
   type JobRanker,
   type JobRanking,
   type JobSearchOptions,
+  type JobSearchResult,
   type StartResponse,
   type TopJobsResponse,
 } from './unemployedle/types';
+
+const DEFAULT_TOP_JOBS_COUNT = 10;
+const MAX_TOP_JOBS_RESULTS = 30;
+const MIN_TOP_JOBS_MATCH_SCORE = 0.3;
+const DEFAULT_MATCH_THRESHOLDS = [0.75, 0.7, 0.65, 0.6];
+const EXPANDED_MATCH_THRESHOLDS = [MIN_TOP_JOBS_MATCH_SCORE];
+
+type CachedTopJobs = {
+  rankedJobs: GameState['job'][];
+  searchResult: JobSearchResult;
+  createdAt: number;
+};
 
 @Injectable()
 export class UnemployedleService {
   private readonly games = new Map<string, GameState>();
   private readonly searchCache = new Map<string, CachedJobSearch>();
+  private readonly topJobsCache = new Map<string, CachedTopJobs>();
   private readonly logger = new Logger(UnemployedleService.name);
   private readonly jobUrlTimeoutMs = 4000;
   private readonly jobUrlUserAgent =
@@ -119,15 +133,32 @@ export class UnemployedleService {
     resumeText: string,
     options?: JobSearchOptions,
   ): Promise<TopJobsResponse> {
-    const { rankedJobs, searchResult } = await this.rankJobs(
-      resumeText,
-      options,
-    );
+    const resolvedOptions = this.resolveSearchOptions(resumeText, options);
+    const cacheKey = this.buildTopJobsCacheKey(resumeText, resolvedOptions);
+    const cached = this.getCachedTopJobs(cacheKey);
+    const { rankedJobs, searchResult } =
+      cached ??
+      (await this.rankJobs(resumeText, resolvedOptions, {
+        thresholds: EXPANDED_MATCH_THRESHOLDS,
+        desiredCount: MAX_TOP_JOBS_RESULTS,
+      }));
+    if (!cached) {
+      this.topJobsCache.set(cacheKey, {
+        rankedJobs,
+        searchResult,
+        createdAt: Date.now(),
+      });
+      this.cleanupTopJobsCache();
+    }
     const matchCount = rankedJobs.length;
+    const resultSuffix =
+      matchCount > 0
+        ? `Showing ${matchCount} match${matchCount === 1 ? '' : 'es'}.`
+        : 'No matches found.';
     return {
       selectionSummary: buildSelectionSummary(
         searchResult,
-        `Showing the top ${matchCount} match${matchCount === 1 ? '' : 'es'}.`,
+        resultSuffix,
       ),
       jobs: rankedJobs.map((job) => ({
         id: job.id,
@@ -135,7 +166,6 @@ export class UnemployedleService {
         title: job.title,
         location: job.location,
         source: job.source,
-        rating: job.rating,
         matchScore: Math.round(job.matchScore * 100),
         url: job.url,
       })),
@@ -207,11 +237,20 @@ export class UnemployedleService {
     return 'in_progress' as const;
   }
 
-  private async rankJobs(resumeText: string, options?: JobSearchOptions) {
-    const resumeKeywords = extractResumeKeywords(resumeText);
+  private async rankJobs(
+    resumeText: string,
+    options?: JobSearchOptions,
+    config: { thresholds?: number[]; desiredCount?: number } = {},
+  ) {
+    const resumeProfile = buildResumeProfile(resumeText);
+    const resolvedOptions = this.resolveSearchOptions(resumeText, options);
+    const desiredJobTitle = toNonEmptyString(resolvedOptions.desiredJobTitle);
+    const desiredCount = config.desiredCount ?? DEFAULT_TOP_JOBS_COUNT;
+    const thresholds = config.thresholds ?? DEFAULT_MATCH_THRESHOLDS;
     const { verifiedJobs, searchResult } = await this.gatherVerifiedJobs(
       resumeText,
-      options,
+      resolvedOptions,
+      desiredCount,
     );
 
     if (verifiedJobs.length === 0) {
@@ -221,7 +260,11 @@ export class UnemployedleService {
 
     let rankedCandidates = verifiedJobs;
     try {
-      const rankings = await this.jobRanker.rankJobs(resumeText, verifiedJobs);
+      const rankings = await this.jobRanker.rankJobs(
+        resumeText,
+        verifiedJobs,
+        desiredJobTitle ?? undefined,
+      );
       rankedCandidates = this.applyRankings(verifiedJobs, rankings);
     } catch (error) {
       const message =
@@ -234,9 +277,8 @@ export class UnemployedleService {
         const matchScore =
           typeof job.matchScoreHint === 'number'
             ? clampNumber(job.matchScoreHint, 0, 1)
-            : computeMatchScore(job, resumeKeywords);
-        const ratingScore = job.rating / 5;
-        const overallScore = matchScore * 0.75 + ratingScore * 0.25;
+            : computeMatchScore(job, resumeProfile, desiredJobTitle);
+        const overallScore = matchScore;
 
         return {
           ...job,
@@ -246,10 +288,14 @@ export class UnemployedleService {
       })
       .sort((a, b) => b.overallScore - a.overallScore);
 
-    const thresholdedJobs = this.applyMatchThreshold(rankedJobs);
-    const diversifiedJobs = this.applyCompanyDiversity(thresholdedJobs).slice(
-      0,
-      10,
+    const thresholdedJobs = this.applyMatchThreshold(
+      rankedJobs,
+      thresholds,
+      desiredCount,
+    );
+    const diversifiedJobs = this.applyCompanyDiversity(
+      thresholdedJobs,
+      desiredCount,
     );
 
     if (diversifiedJobs.length === 0) {
@@ -260,9 +306,11 @@ export class UnemployedleService {
     return { rankedJobs: diversifiedJobs, searchResult };
   }
 
-  private applyMatchThreshold(jobs: GameState['job'][]) {
-    const thresholds = [0.75, 0.7, 0.65, 0.6];
-    const desiredCount = 10;
+  private applyMatchThreshold(
+    jobs: GameState['job'][],
+    thresholds: number[],
+    desiredCount = DEFAULT_TOP_JOBS_COUNT,
+  ) {
     let filtered: GameState['job'][] = [];
 
     thresholds.forEach((threshold) => {
@@ -294,7 +342,6 @@ export class UnemployedleService {
         title: game.job.title,
         location: game.job.location,
         source: game.job.source,
-        rating: game.job.rating,
         matchScore: Math.round(game.job.matchScore * 100),
         companyMasked: game.maskedCompany,
       },
@@ -350,10 +397,11 @@ export class UnemployedleService {
 
   private async gatherVerifiedJobs(
     resumeText: string,
-    options?: JobSearchOptions,
+    options: JobSearchOptions,
+    desiredCount: number,
   ) {
     const maxAttempts = 3;
-    const maxJobs = 20;
+    const maxJobs = Math.max(20, Math.min(MAX_TOP_JOBS_RESULTS, desiredCount));
     const collected: JobOpening[] = [];
     const seen = new Set<string>();
     let summaryResult: CachedJobSearch['result'] | null = null;
@@ -392,7 +440,7 @@ export class UnemployedleService {
       );
       collected.push(...verified);
 
-      if (collected.length >= 10) {
+      if (collected.length >= desiredCount) {
         break;
       }
     }
@@ -773,7 +821,10 @@ export class UnemployedleService {
     });
   }
 
-  private applyCompanyDiversity(jobs: GameState['job'][]) {
+  private applyCompanyDiversity(
+    jobs: GameState['job'][],
+    maxResults = DEFAULT_TOP_JOBS_COUNT,
+  ) {
     const seenCompanies = new Set<string>();
     const sizeCounts: Record<CompanySize, number> = {
       large: 0,
@@ -781,7 +832,6 @@ export class UnemployedleService {
       startup: 0,
     };
     const diversified: GameState['job'][] = [];
-    const maxResults = 10;
 
     const tryAdd = (job: GameState['job'], enforceSizeCaps: boolean) => {
       if (diversified.length >= maxResults) {
@@ -859,13 +909,19 @@ export class UnemployedleService {
     const includeRemote = Boolean(options.includeRemote);
     const includeLocal = Boolean(options.includeLocal);
     const specificLocation = toNonEmptyString(options.specificLocation);
+    const desiredJobTitle = toNonEmptyString(options.desiredJobTitle);
     const localLocation = includeLocal
       ? toNonEmptyString(options.localLocation) ??
         extractResumeLocation(resumeText)
       : null;
 
     if (!includeRemote && !includeLocal && !specificLocation) {
-      return { includeRemote: true, includeLocal: true, localLocation };
+      return {
+        includeRemote: true,
+        includeLocal: true,
+        localLocation,
+        desiredJobTitle,
+      };
     }
 
     return {
@@ -873,7 +929,29 @@ export class UnemployedleService {
       includeLocal,
       specificLocation,
       localLocation,
+      desiredJobTitle,
     };
+  }
+
+  private buildTopJobsCacheKey(
+    resumeText: string,
+    options: JobSearchOptions,
+  ) {
+    return createHash('sha256')
+      .update(`${resumeText}|${JSON.stringify(options ?? {})}`)
+      .digest('hex');
+  }
+
+  private getCachedTopJobs(cacheKey: string) {
+    const cached = this.topJobsCache.get(cacheKey);
+    if (!cached) {
+      return null;
+    }
+    if (Date.now() - cached.createdAt < CACHE_TTL_MS) {
+      return cached;
+    }
+    this.topJobsCache.delete(cacheKey);
+    return null;
   }
 
   private cleanupSearchCache() {
@@ -889,6 +967,23 @@ export class UnemployedleService {
       const oldest = entries.shift();
       if (oldest) {
         this.searchCache.delete(oldest[0]);
+      }
+    }
+  }
+
+  private cleanupTopJobsCache() {
+    if (this.topJobsCache.size <= CACHE_MAX_ENTRIES) {
+      return;
+    }
+
+    const entries = Array.from(this.topJobsCache.entries()).sort(
+      (a, b) => a[1].createdAt - b[1].createdAt,
+    );
+
+    while (this.topJobsCache.size > CACHE_MAX_ENTRIES && entries.length > 0) {
+      const oldest = entries.shift();
+      if (oldest) {
+        this.topJobsCache.delete(oldest[0]);
       }
     }
   }

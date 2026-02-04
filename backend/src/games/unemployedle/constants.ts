@@ -51,7 +51,6 @@ export const COMPANY_SIZE_LIMITS = {
   mid: 4,
   startup: 4,
 } as const;
-export const DEFAULT_RATING = 4.0;
 export const UNEMPLOYEDLE_RATE_LIMIT_WINDOW_MS = parsePositiveNumber(
   process.env.UNEMPLOYEDLE_RATE_LIMIT_WINDOW_MS,
   10 * 60 * 1000,

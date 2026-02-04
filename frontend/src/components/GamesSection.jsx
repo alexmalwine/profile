@@ -16,19 +16,28 @@ const GamesSection = ({ apiStatus, apiStatusLabel }) => {
     jobsError,
     isListing,
     topJobsSummary,
+    topJobsVisibleCount,
+    desiredJobTitle,
+    setDesiredJobTitle,
     locationPreferences,
     setLocationPreferences,
     handleResumeChange,
     handleStartGame,
     handleFetchTopJobs,
+    handleShowMoreJobs,
     handleGuess,
     handleResetGame,
   } = useUnemployedleGame()
   const isGenerating = isStarting || isListing
   const isShowingTopJobs = isListing || topJobs.length > 0
   const canRunJobs = Boolean(resumeFile) && !isGenerating
+  const totalJobCount = topJobs.length
   const topJobsLabel =
-    topJobs.length > 0 ? `Top job matches (${topJobs.length})` : 'Top job matches'
+    totalJobCount > 0
+      ? `Top job matches (${totalJobCount})`
+      : 'Top job matches'
+  const visibleTopJobs = topJobs.slice(0, topJobsVisibleCount)
+  const canShowMoreJobs = visibleTopJobs.length < topJobs.length
   const generationLabel = isStarting
     ? 'Generating your game'
     : isListing
@@ -161,52 +170,50 @@ const GamesSection = ({ apiStatus, apiStatusLabel }) => {
                     </div>
                   </div>
                   {jobsError && <p className="status-line error">{jobsError}</p>}
-                  {isListing && (
-                    <div
-                      className="loading-banner compact"
-                      role="status"
-                      aria-live="polite"
-                    >
-                      <span className="loading-spinner" aria-hidden="true" />
-                      <div>
-                        <p className="loading-title">Finding openings</p>
-                        <p className="loading-subtitle">
-                          Pulling fresh listings and ranking them to your resume.
-                        </p>
-                      </div>
-                    </div>
-                  )}
                   {!isListing && topJobsSummary && (
                     <p className="note">{topJobsSummary}</p>
                   )}
-                  {!isListing && topJobs.length > 0 && (
-                    <div className="job-list expanded">
-                      {topJobs.map((job) => (
-                        <div key={job.id} className="job-list-item">
-                          <div>
-                            <p className="job-title">{job.title}</p>
-                            <p className="muted">
-                              {job.company} · {job.location}
-                            </p>
+                  {!isListing && visibleTopJobs.length > 0 && (
+                    <>
+                      <div className="job-list expanded">
+                        {visibleTopJobs.map((job) => (
+                          <div key={job.id} className="job-list-item">
+                            <div>
+                              <p className="job-title">{job.title}</p>
+                              <p className="muted">
+                                {job.company} · {job.location}
+                              </p>
+                            </div>
+                            <div className="job-badges">
+                              <span className="pill">{job.source}</span>
+                            </div>
+                            <a
+                              className="button ghost"
+                              href={job.url}
+                              target="_blank"
+                              rel="noreferrer"
+                            >
+                              View opening
+                            </a>
                           </div>
-                          <div className="job-badges">
-                            <span className="pill">
-                              Match {job.matchScore}%
-                            </span>
-                            <span className="pill">Rating {job.rating}</span>
-                            <span className="pill">{job.source}</span>
-                          </div>
-                          <a
-                            className="button ghost"
-                            href={job.url}
-                            target="_blank"
-                            rel="noreferrer"
+                        ))}
+                      </div>
+                      {canShowMoreJobs && (
+                        <div className="pagination-controls">
+                          <button
+                            type="button"
+                            className="button ghost small"
+                            onClick={handleShowMoreJobs}
+                            disabled={isGenerating}
                           >
-                            View opening
-                          </a>
+                            Show more jobs
+                          </button>
+                          <span className="pagination-status">
+                            Showing {visibleTopJobs.length} of {topJobs.length}
+                          </span>
                         </div>
-                      ))}
-                    </div>
+                      )}
+                    </>
                   )}
                 </div>
               </div>
@@ -227,6 +234,23 @@ const GamesSection = ({ apiStatus, apiStatusLabel }) => {
                       Selected file: <strong>{resumeFile.name}</strong>
                     </p>
                   )}
+                  <div className="form-group">
+                    <p className="label">Desired Job Title (optional)</p>
+                    <input
+                      type="text"
+                      className="text-input"
+                      placeholder="Senior Full Stack Engineer"
+                      value={desiredJobTitle}
+                      disabled={isGenerating}
+                      onChange={(event) =>
+                        setDesiredJobTitle(event.target.value)
+                      }
+                    />
+                    <p className="note">
+                      Narrow your search further by telling us the title you want
+                      for your next job
+                    </p>
+                  </div>
                   <div className="form-group">
                     <p className="label">Job location filters</p>
                     <label className="checkbox">
@@ -329,8 +353,6 @@ const GamesSection = ({ apiStatus, apiStatusLabel }) => {
                         {gameState.job.location} · {gameState.job.source}
                       </p>
                       <div className="job-meta">
-                        <span>Match {gameState.job.matchScore}%</span>
-                        <span>Rating {gameState.job.rating}</span>
                       </div>
                       <p className="muted">
                         Company: {gameState.job.companyMasked}

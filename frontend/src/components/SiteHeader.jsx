@@ -12,7 +12,7 @@ const SiteHeader = () => (
         <a href="#games">Games and Stuff</a>
         <a href="#contact">Contact</a>
       </nav>
-      <a className="button small" href="/resume.pdf">
+      <a className="button small" href="/resume.pdf" target="_blank" rel="noreferrer">
         Resume
       </a>
     </div>
