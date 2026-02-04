@@ -300,7 +300,7 @@ const extractLastJobTitle = (resumeText: string) => {
 
 @Injectable()
 export class JobBoardSearchClient implements JobSearchClient {
-  private readonly apiKey = '1fdc4e885035d4b99a822c91acc9d9d1a77fb569e666ab6a0a88a977641ea8c0';
+  private readonly apiKey = SERPAPI_API_KEY;
   private readonly apiUrl = SERPAPI_API_URL;
   private readonly logger = new Logger(JobBoardSearchClient.name);
   private readonly fetcher: typeof fetch = fetch;
