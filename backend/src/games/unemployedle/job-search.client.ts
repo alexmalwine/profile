@@ -15,8 +15,8 @@ import {
 } from './constants';
 import { FORTUNE_500_CAREER_SITES } from './fortune-500';
 import {
+  buildResumeProfile,
   extractKeywordsFromText,
-  extractResumeKeywords,
   normalizeCompanyKey,
   normalizeJobSource,
   toNonEmptyString,
@@ -320,8 +320,8 @@ export class JobBoardSearchClient implements JobSearchClient {
       );
     }
 
-    const resumeKeywords = Array.from(extractResumeKeywords(resumeText));
-    const baseQueries = this.buildSearchQueries(resumeText, resumeKeywords);
+    const resumeProfile = buildResumeProfile(resumeText);
+    const baseQueries = this.buildSearchQueries(resumeText, resumeProfile);
     const locationVariants = this.buildLocationVariants(options);
     const queries = this.expandQueries(
       baseQueries,
@@ -718,17 +718,29 @@ export class JobBoardSearchClient implements JobSearchClient {
     return Array.from(deduped.values());
   }
 
-  private buildSearchQueries(resumeText: string, keywords: string[]) {
+  private buildSearchQueries(
+    resumeText: string,
+    resumeProfile: ReturnType<typeof buildResumeProfile>,
+  ) {
     const lower = resumeText.toLowerCase();
     const normalizedResume = normalizeKeywordText(resumeText);
+    const keywordSource =
+      resumeProfile.experienceText.length > 0
+        ? resumeProfile.experienceText
+        : resumeText;
+    const lowerSource = keywordSource.toLowerCase();
+    const normalizedSource = normalizeKeywordText(keywordSource);
     const queries = new Set<string>();
     const normalizedKeywords = Array.from(
       new Set(
-        keywords
+        Array.from(resumeProfile.keywords)
           .map((keyword) => keyword.toLowerCase().trim())
           .filter(Boolean),
       ),
     );
+    const experienceKeywords = resumeProfile.experienceKeywords;
+    const experienceKeywordSet = new Set(experienceKeywords);
+    const focusTagSet = new Set(resumeProfile.focusTags);
     const isSenior =
       /\b(senior|staff|principal)\b/i.test(lower) ||
       /\blead\s+(engineer|developer|designer|manager|analyst|scientist|architect|consultant|specialist|coordinator|administrator|strategist|director)\b/i.test(
@@ -739,7 +751,7 @@ export class JobBoardSearchClient implements JobSearchClient {
 
     const keywordMatches = normalizedKeywords
       .map((keyword) => {
-        const directIndex = lower.indexOf(keyword);
+        const directIndex = lowerSource.indexOf(keyword);
         if (directIndex >= 0) {
           return { keyword, index: directIndex };
         }
@@ -747,9 +759,20 @@ export class JobBoardSearchClient implements JobSearchClient {
         if (normalizedKeyword.length < 3) {
           return { keyword, index: -1 };
         }
+        const normalizedIndex = normalizedSource.indexOf(normalizedKeyword);
+        if (normalizedIndex >= 0) {
+          return { keyword, index: normalizedIndex };
+        }
+        const resumeIndex = lower.indexOf(keyword);
+        if (resumeIndex >= 0) {
+          return { keyword, index: resumeIndex + 10000 };
+        }
+        const resumeNormalizedIndex =
+          normalizedResume.indexOf(normalizedKeyword);
         return {
           keyword,
-          index: normalizedResume.indexOf(normalizedKeyword),
+          index:
+            resumeNormalizedIndex >= 0 ? resumeNormalizedIndex + 10000 : -1,
         };
       })
       .filter((entry) => entry.index >= 0)
@@ -768,6 +791,9 @@ export class JobBoardSearchClient implements JobSearchClient {
 
     const hasKeyword = (term: string) =>
       normalizedKeywords.some((keyword) => keywordHasTerm(keyword, term));
+    const hasExperienceKeyword = (term: string) =>
+      experienceKeywordSet.size > 0 &&
+      experienceKeywords.some((keyword) => keywordHasTerm(keyword, term));
 
     const shouldApplySeniority = (query: string) => {
       if (!prefix) {
@@ -798,20 +824,30 @@ export class JobBoardSearchClient implements JobSearchClient {
     };
 
     const scoredRules = ROLE_QUERY_RULES.map((rule, index) => {
-      const score = rule.keywords.reduce(
+      const experienceScore = rule.keywords.reduce(
+        (total, term) => total + (hasExperienceKeyword(term) ? 1 : 0),
+        0,
+      );
+      const resumeScore = rule.keywords.reduce(
         (total, term) => total + (hasKeyword(term) ? 1 : 0),
         0,
       );
       const requiredMatch = rule.requiredKeywords
-        ? rule.requiredKeywords.some((term) => hasKeyword(term))
+        ? experienceKeywordSet.size > 0
+          ? rule.requiredKeywords.some((term) => hasExperienceKeyword(term))
+          : rule.requiredKeywords.some((term) => hasKeyword(term))
         : true;
       const minScore = rule.minScore ?? 1;
+      const thresholdScore =
+        experienceKeywordSet.size > 0 ? experienceScore : resumeScore;
+      const focusBoost = focusTagSet.has(rule.query) ? 2 : 0;
+      const score = experienceScore * 2.5 + resumeScore + focusBoost;
       return {
         rule,
         index,
         score,
         requiredMatch,
-        meetsThreshold: score >= minScore,
+        meetsThreshold: thresholdScore >= minScore,
       };
     })
       .filter((entry) => entry.requiredMatch && entry.meetsThreshold)
@@ -827,6 +863,8 @@ export class JobBoardSearchClient implements JobSearchClient {
     const domainPhrases = phraseKeywords.filter(
       (keyword) => !titlePhraseSet.has(keyword),
     );
+
+    resumeProfile.focusTags.forEach((tag) => add(tag));
 
     titlePhrases.slice(0, 2).forEach((keyword) => add(keyword));
 
