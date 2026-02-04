@@ -82,7 +82,6 @@ describe('UnemployedleController', () => {
         title: 'Software Engineer',
         location: 'Remote',
         source: 'LinkedIn',
-        rating: 4.3,
         matchScore: 78,
         companyMasked: '___',
       },

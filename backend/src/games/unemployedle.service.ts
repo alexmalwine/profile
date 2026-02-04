@@ -135,7 +135,6 @@ export class UnemployedleService {
         title: job.title,
         location: job.location,
         source: job.source,
-        rating: job.rating,
         matchScore: Math.round(job.matchScore * 100),
         url: job.url,
       })),
@@ -235,8 +234,7 @@ export class UnemployedleService {
           typeof job.matchScoreHint === 'number'
             ? clampNumber(job.matchScoreHint, 0, 1)
             : computeMatchScore(job, resumeProfile);
-        const ratingScore = job.rating / 5;
-        const overallScore = matchScore * 0.75 + ratingScore * 0.25;
+        const overallScore = matchScore;
 
         return {
           ...job,
@@ -294,7 +292,6 @@ export class UnemployedleService {
         title: game.job.title,
         location: game.job.location,
         source: game.job.source,
-        rating: game.job.rating,
         matchScore: Math.round(game.job.matchScore * 100),
         companyMasked: game.maskedCompany,
       },

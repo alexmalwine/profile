@@ -1,5 +1,4 @@
 import { createHash } from 'crypto';
-import { DEFAULT_RATING } from './constants';
 import { KNOWN_KEYWORDS } from './keywords';
 import {
   EXPERIENCE_HEADERS,
@@ -1135,11 +1134,6 @@ export const normalizeJobResults = (jobs: JobSearchJob[]) => {
 
     const location = toNonEmptyString(job.location) ?? 'Remote';
     const source = normalizeJobSource(job.source);
-    const rating = clampNumber(
-      typeof job.rating === 'number' ? job.rating : DEFAULT_RATING,
-      1,
-      5,
-    );
     const providedKeywords = normalizeKeywords(job.keywords);
     const keywords =
       providedKeywords.length > 0
@@ -1175,7 +1169,6 @@ export const normalizeJobResults = (jobs: JobSearchJob[]) => {
       title,
       location,
       source,
-      rating,
       keywords,
       url,
       matchScoreHint,

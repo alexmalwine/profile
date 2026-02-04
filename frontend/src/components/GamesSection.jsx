@@ -193,7 +193,6 @@ const GamesSection = ({ apiStatus, apiStatusLabel }) => {
                             <span className="pill">
                               Match {job.matchScore}%
                             </span>
-                            <span className="pill">Rating {job.rating}</span>
                             <span className="pill">{job.source}</span>
                           </div>
                           <a
@@ -330,7 +329,6 @@ const GamesSection = ({ apiStatus, apiStatusLabel }) => {
                       </p>
                       <div className="job-meta">
                         <span>Match {gameState.job.matchScore}%</span>
-                        <span>Rating {gameState.job.rating}</span>
                       </div>
                       <p className="muted">
                         Company: {gameState.job.companyMasked}
