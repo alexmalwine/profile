@@ -967,15 +967,33 @@ main {
 
 @media (max-width: 720px) {
   .nav-row {
-    align-items: flex-start;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.75rem 0;
   }
 
   .nav {
     gap: 0.75rem;
+    order: 3;
+    width: 100%;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    padding-bottom: 0.25rem;
+  }
+
+  .nav a {
+    font-size: 0.85rem;
+    white-space: nowrap;
+  }
+
+  .logo {
+    white-space: nowrap;
   }
 
   .button.small {
     padding: 0.45rem 0.75rem;
+    order: 2;
   }
 
   .contact-card {
