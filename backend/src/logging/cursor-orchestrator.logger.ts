@@ -163,7 +163,7 @@ export class CursorOrchestratorLogger extends Logger {
   private readonly host = hostname();
 
   override error(message: unknown, ...optionalParams: unknown[]) {
-    super.error(message as string, ...(optionalParams as unknown[]));
+    super.error(message as string, ...(optionalParams as any[]));
 
     if (!this.shouldNotify()) {
       return;
