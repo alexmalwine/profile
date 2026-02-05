@@ -1,0 +1,237 @@
+name: Create Cursor Agent from Incident Event
+
+on:
+  repository_dispatch:
+    types: [incident_event]
+  workflow_dispatch:
+    inputs:
+      payload:
+        description: JSON payload for an incident event
+        required: true
+        type: string
+      dry_run:
+        description: Skip posting to the orchestrator
+        required: false
+        default: "false"
+        type: choice
+        options:
+          - "false"
+          - "true"
+
+jobs:
+  create-cursor-agent:
+    name: Build incident context and notify Cursor
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    env:
+      INCIDENT_PAYLOAD: ${{ github.event_name == 'repository_dispatch' && toJson(github.event.client_payload) || inputs.payload }}
+      CURSOR_ORCHESTRATOR_WEBHOOK_URL: ${{ secrets.CURSOR_ORCHESTRATOR_WEBHOOK_URL }}
+      CURSOR_ORCHESTRATOR_TOKEN: ${{ secrets.CURSOR_ORCHESTRATOR_TOKEN }}
+    steps:
+      - name: Validate payload presence
+        run: |
+          if [ -z "${INCIDENT_PAYLOAD}" ]; then
+            echo "INCIDENT_PAYLOAD is empty. Provide client_payload or workflow input." >&2
+            exit 1
+          fi
+
+      - name: Build Cursor agent prompt
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          
+          raw_payload = os.environ.get("INCIDENT_PAYLOAD", "").strip()
+          if not raw_payload:
+            raise SystemExit("INCIDENT_PAYLOAD is empty.")
+          
+          try:
+            payload = json.loads(raw_payload)
+          except json.JSONDecodeError:
+            payload = {"raw_payload": raw_payload}
+          
+          def pick(obj, *keys, default=""):
+            for key in keys:
+              if isinstance(obj, dict) and key in obj and obj[key] not in (None, ""):
+                return obj[key]
+            return default
+          
+          def nested(obj, *path, default=""):
+            current = obj
+            for key in path:
+              if not isinstance(current, dict):
+                return default
+              current = current.get(key)
+            return current if current not in (None, "") else default
+          
+          repo_info = pick(payload, "repo", "repository", default={})
+          repo_url = pick(repo_info, "url", "html_url", default="") or pick(
+            payload, "repo_url", "repository_url", default=""
+          )
+          if not repo_url:
+            repo_url = f"https://github.com/{os.environ.get('GITHUB_REPOSITORY', '')}"
+          
+          repo_ref = pick(repo_info, "ref", "branch", default="") or pick(
+            payload, "repo_ref", "ref", "branch", default=""
+          )
+          if not repo_ref:
+            repo_ref = os.environ.get("GITHUB_REF_NAME") or os.environ.get("GITHUB_REF", "")
+          
+          service = pick(payload, "service", "service_name", default="unknown")
+          environment = pick(payload, "environment", "env", default="unknown")
+          timestamp = pick(payload, "timestamp", "occurred_at", "time", default="")
+          window = pick(payload, "time_window_minutes", "window_minutes", "time_window", default="")
+          
+          correlation_id = pick(payload, "correlation_id", "correlationId", default="")
+          request_id = pick(payload, "request_id", "requestId", default="")
+          user_id = pick(payload, "user_id", "userId", default="")
+          org_id = pick(payload, "org_id", "orgId", default="")
+          
+          error_message = nested(payload, "error", "message", default="") or pick(
+            payload, "error_message", "message", default="(missing error message)"
+          )
+          stack_trace = nested(payload, "error", "stack_trace", default="") or pick(
+            payload, "stack_trace", "stacktrace", "stack", default=""
+          )
+          error_type = nested(payload, "error", "type", default="") or pick(
+            payload, "error_type", default=""
+          )
+          
+          links = pick(payload, "links", default={})
+          logs_link = pick(links, "logs", "log_search", default="") or pick(
+            payload, "logs_url", "log_search_url", default=""
+          )
+          dashboard_link = pick(links, "dashboard", "dashboards", default="") or pick(
+            payload, "dashboard_url", default=""
+          )
+          runbook_link = pick(links, "runbook", default="") or pick(
+            payload, "runbook_url", default=""
+          )
+          
+          expected_behavior = pick(payload, "expected_behavior", "expectedBehavior", default="TBD")
+          definition_of_done = pick(payload, "definition_of_done", "definitionOfDone", "dod", default="TBD")
+          
+          time_window_display = str(window) if window else "not provided"
+          timestamp_display = timestamp or "not provided"
+          stack_trace_display = stack_trace or "not provided"
+          
+          prompt = "\n".join(
+            [
+              "# Incident Event Context",
+              "",
+              "## Repo context",
+              f"- Repo: {repo_url}",
+              f"- Ref/branch: {repo_ref}",
+              f"- Service: {service}",
+              f"- Environment: {environment}",
+              f"- Timestamp: {timestamp_display}",
+              f"- Time window: {time_window_display}",
+              f"- Correlation ID: {correlation_id or 'not provided'}",
+              f"- Request ID: {request_id or 'not provided'}",
+              f"- User ID: {user_id or 'not provided'}",
+              f"- Org ID: {org_id or 'not provided'}",
+              "",
+              "## Error",
+              f"- Message: {error_message}",
+              f"- Type: {error_type or 'not provided'}",
+              "",
+              "```",
+              stack_trace_display,
+              "```",
+              "",
+              "## Links",
+              f"- Logs: {logs_link or 'not provided'}",
+              f"- Dashboard: {dashboard_link or 'not provided'}",
+              f"- Runbook: {runbook_link or 'not provided'}",
+              "",
+              "## Expected behavior",
+              expected_behavior,
+              "",
+              "## Definition of done",
+              definition_of_done,
+              "",
+              "## Raw payload",
+              "```json",
+              json.dumps(payload, indent=2, ensure_ascii=True),
+              "```",
+              "",
+            ]
+          )
+          
+          agent_payload = {
+            "source": "github-actions",
+            "trigger": "incident_event",
+            "repository": repo_url,
+            "ref": repo_ref,
+            "service": service,
+            "environment": environment,
+            "timestamp": timestamp,
+            "time_window_minutes": window,
+            "correlation_id": correlation_id,
+            "request_id": request_id,
+            "user_id": user_id,
+            "org_id": org_id,
+            "error": {
+              "message": error_message,
+              "type": error_type,
+              "stack_trace": stack_trace,
+            },
+            "links": {
+              "logs": logs_link,
+              "dashboard": dashboard_link,
+              "runbook": runbook_link,
+            },
+            "expected_behavior": expected_behavior,
+            "definition_of_done": definition_of_done,
+            "prompt": prompt,
+          }
+          
+          with open("cursor_agent_prompt.md", "w", encoding="utf-8") as handle:
+            handle.write(prompt)
+          
+          with open("cursor_agent_payload.json", "w", encoding="utf-8") as handle:
+            json.dump(agent_payload, handle, indent=2, ensure_ascii=True)
+          
+          summary_path = os.environ.get("GITHUB_STEP_SUMMARY")
+          if summary_path:
+            with open(summary_path, "a", encoding="utf-8") as summary:
+              summary.write("## Cursor agent incident summary\n")
+              summary.write(f"- Repo: {repo_url}\n")
+              summary.write(f"- Ref/branch: {repo_ref}\n")
+              summary.write(f"- Service: {service}\n")
+              summary.write(f"- Environment: {environment}\n")
+              summary.write(f"- Timestamp: {timestamp_display}\n")
+              summary.write(f"- Correlation ID: {correlation_id or 'not provided'}\n")
+              summary.write(f"- Error: {error_message}\n")
+              summary.write("\n")
+          
+          print("Cursor agent prompt and payload created.")
+          PY
+
+      - name: Verify orchestrator secrets
+        if: ${{ inputs.dry_run != 'true' }}
+        run: |
+          if [ -z "${CURSOR_ORCHESTRATOR_WEBHOOK_URL}" ]; then
+            echo "Missing CURSOR_ORCHESTRATOR_WEBHOOK_URL secret." >&2
+            exit 1
+          fi
+
+      - name: Notify Cursor orchestrator
+        if: ${{ inputs.dry_run != 'true' }}
+        run: |
+          auth_header=""
+          if [ -n "${CURSOR_ORCHESTRATOR_TOKEN}" ]; then
+            auth_header="Authorization: Bearer ${CURSOR_ORCHESTRATOR_TOKEN}"
+          fi
+          
+          if [ -n "${auth_header}" ]; then
+            curl -sSf -X POST "${CURSOR_ORCHESTRATOR_WEBHOOK_URL}" \
+              -H "Content-Type: application/json" \
+              -H "${auth_header}" \
+              --data-binary "@cursor_agent_payload.json"
+          else
+            curl -sSf -X POST "${CURSOR_ORCHESTRATOR_WEBHOOK_URL}" \
+              -H "Content-Type: application/json" \
+              --data-binary "@cursor_agent_payload.json"
+          fi
