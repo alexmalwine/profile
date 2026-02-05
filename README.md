@@ -51,6 +51,17 @@ docker run --rm -p 3000:3000 \
 - `OPENAI_API_KEY`: used to rank verified job results.
 - `SERPAPI_API_KEY`: used to search job boards and company career sites.
 
+### Optional Cursor orchestrator integration
+When enabled, backend error logs are sent to a cursor-orchestrator webhook to
+create a Cursor agent with repository context.
+- `CURSOR_ORCHESTRATOR_ENABLED`: set to `true` to enable the integration.
+- `CURSOR_ORCHESTRATOR_WEBHOOK_URL`: webhook endpoint for cursor-orchestrator.
+- `CURSOR_ORCHESTRATOR_TOKEN`: optional bearer token for the webhook.
+- `CURSOR_ORCHESTRATOR_REPO_URL`: override the repository URL in payloads.
+- `CURSOR_ORCHESTRATOR_REPO_REF`: override the branch or commit ref.
+- `CURSOR_ORCHESTRATOR_SERVICE`: override the service name (defaults to backend).
+- `CURSOR_ORCHESTRATOR_ENVIRONMENT`: override the environment (defaults to NODE_ENV).
+
 ## Games
 The Unemployedle game lets a user upload a resume and play a hangman-style round
 to reveal a company name for a curated job opening. Job sourcing and LLM
