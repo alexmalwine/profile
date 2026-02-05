@@ -23,16 +23,14 @@ import type { ArtStyleOption } from './custom-trading-cards/types';
 
 interface CustomTradingCardsRequestBody {
   card_titles?: string | string[];
-  cardTitles?: string | string[];
-  Card_titles?: string | string[];
   prefixes?: string | string[];
-  Prefixes?: string | string[];
   art_style?: string;
-  artStyle?: string;
-  Art_style?: string;
   theme?: string;
-  Theme?: string;
 }
+
+type CustomTradingCardsBodyInput =
+  | (CustomTradingCardsRequestBody & Record<string, unknown>)
+  | undefined;
 
 @Controller('api/games/custom-trading-cards')
 export class CustomTradingCardsController {
@@ -50,7 +48,7 @@ export class CustomTradingCardsController {
   )
   async generateCards(
     @UploadedFiles() files: Express.Multer.File[] = [],
-    @Body() body?: CustomTradingCardsRequestBody,
+    @Body() body?: CustomTradingCardsBodyInput,
     @Res() response?: Response,
   ): Promise<void> {
     if (!response) {
@@ -97,7 +95,7 @@ export class CustomTradingCardsController {
   )
   async previewCard(
     @UploadedFiles() files: Express.Multer.File[] = [],
-    @Body() body?: CustomTradingCardsRequestBody,
+    @Body() body?: CustomTradingCardsBodyInput,
     @Res() response?: Response,
   ): Promise<void> {
     if (!response) {
@@ -119,17 +117,19 @@ export class CustomTradingCardsController {
   }
 
   private buildRequestPayload(
-    body: CustomTradingCardsRequestBody | undefined,
+    body: CustomTradingCardsBodyInput,
     files: Express.Multer.File[],
   ) {
     const titles = parseDelimitedList(
-      body?.card_titles ?? body?.cardTitles ?? body?.Card_titles,
+      this.getBodyValue(body, ['card_titles', 'cardTitles', 'Card_titles']),
     );
     if (titles.length === 0) {
       throw new BadRequestException('Card titles are required.');
     }
 
-    const prefixes = parseDelimitedList(body?.prefixes ?? body?.Prefixes);
+    const prefixes = parseDelimitedList(
+      this.getBodyValue(body, ['prefixes', 'Prefixes']),
+    );
     const normalizedPrefixes = prefixes.length > 0 ? prefixes : [''];
     const totalCombinations = titles.length * normalizedPrefixes.length;
     if (totalCombinations > MAX_CARD_COMBINATIONS) {
@@ -138,14 +138,16 @@ export class CustomTradingCardsController {
       );
     }
 
-    const theme = body?.theme ?? body?.Theme ?? '';
+    const theme =
+      this.getBodyValue(body, ['theme', 'Theme']) ??
+      '';
     const normalizedTheme = theme.trim();
     if (!normalizedTheme) {
       throw new BadRequestException('Theme is required.');
     }
 
     const artStyleValue =
-      body?.art_style ?? body?.artStyle ?? body?.Art_style ?? '';
+      this.getBodyValue(body, ['art_style', 'artStyle', 'Art_style']) ?? '';
     const normalizedArtStyle = artStyleValue.trim();
     if (!ART_STYLE_OPTIONS.includes(normalizedArtStyle as ArtStyleOption)) {
       throw new BadRequestException(
@@ -160,5 +162,21 @@ export class CustomTradingCardsController {
       artStyle: normalizedArtStyle as ArtStyleOption,
       referenceImages: files ?? [],
     };
+  }
+
+  private getBodyValue(
+    body: CustomTradingCardsBodyInput,
+    keys: string[],
+  ): string | string[] | undefined {
+    if (!body) {
+      return undefined;
+    }
+    for (const key of keys) {
+      const value = body[key];
+      if (typeof value === 'string' || Array.isArray(value)) {
+        return value;
+      }
+    }
+    return undefined;
   }
 }
