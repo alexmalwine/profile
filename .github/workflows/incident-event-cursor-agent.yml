@@ -36,7 +36,99 @@ jobs:
             exit 1
           fi
 
+      - name: Determine incident branch
+        id: branch_check
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          import re
+          import urllib.parse
+          
+          raw_payload = os.environ.get("INCIDENT_PAYLOAD", "").strip()
+          payload = {}
+          if raw_payload:
+            try:
+              payload = json.loads(raw_payload)
+            except json.JSONDecodeError:
+              payload = {"raw_payload": raw_payload}
+          
+          def pick(obj, *keys, default=""):
+            for key in keys:
+              if isinstance(obj, dict) and key in obj and obj[key] not in (None, ""):
+                return obj[key]
+            return default
+          
+          def sanitize(value):
+            value = str(value).strip()
+            if not value:
+              return ""
+            value = value.replace(" ", "-")
+            value = re.sub(r"[^A-Za-z0-9._/-]", "-", value)
+            value = re.sub(r"-{2,}", "-", value)
+            value = re.sub(r"/{2,}", "/", value)
+            return value.strip("/.-")
+          
+          branch = pick(
+            payload,
+            "issue_branch",
+            "incident_branch",
+            "cursor_branch",
+            "agent_branch",
+            "work_branch",
+            "branch_name",
+            default="",
+          )
+          
+          if not branch:
+            correlation = pick(payload, "correlation_id", "correlationId", default="")
+            request_id = pick(payload, "request_id", "requestId", default="")
+            seed = correlation or request_id
+            if seed:
+              branch = f"incident/{seed}"
+          
+          branch = sanitize(branch)
+          encoded = urllib.parse.quote(branch, safe="") if branch else ""
+          
+          output_path = os.environ.get("GITHUB_OUTPUT")
+          if output_path:
+            with open(output_path, "a", encoding="utf-8") as handle:
+              handle.write(f"branch_name={branch}\n")
+              handle.write(f"branch_encoded={encoded}\n")
+          PY
+
+      - name: Check if incident branch already exists
+        id: branch_exists
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          branch="${{ steps.branch_check.outputs.branch_name }}"
+          encoded="${{ steps.branch_check.outputs.branch_encoded }}"
+          
+          if [ -z "${branch}" ]; then
+            echo "skip=false" >> "${GITHUB_OUTPUT}"
+            exit 0
+          fi
+          
+          if gh api -H "Accept: application/vnd.github+json" "/repos/${GITHUB_REPOSITORY}/branches/${encoded}" >/dev/null 2>&1; then
+            echo "skip=true" >> "${GITHUB_OUTPUT}"
+            echo "branch=${branch}" >> "${GITHUB_OUTPUT}"
+          else
+            echo "skip=false" >> "${GITHUB_OUTPUT}"
+            echo "branch=${branch}" >> "${GITHUB_OUTPUT}"
+          fi
+
+      - name: Skip agent creation when branch exists
+        if: ${{ steps.branch_exists.outputs.skip == 'true' }}
+        run: |
+          echo "Incident branch already exists: ${{ steps.branch_exists.outputs.branch }}"
+          if [ -n "${GITHUB_STEP_SUMMARY}" ]; then
+            echo "## Cursor agent skipped" >> "${GITHUB_STEP_SUMMARY}"
+            echo "- Reason: branch already exists (\`${{ steps.branch_exists.outputs.branch }}\`)" >> "${GITHUB_STEP_SUMMARY}"
+          fi
+
       - name: Build Cursor agent prompt
+        if: ${{ steps.branch_exists.outputs.skip != 'true' }}
         run: |
           python - <<'PY'
           import json
@@ -210,7 +302,7 @@ jobs:
           PY
 
       - name: Verify orchestrator secrets
-        if: ${{ inputs.dry_run != 'true' }}
+        if: ${{ inputs.dry_run != 'true' && steps.branch_exists.outputs.skip != 'true' }}
         run: |
           if [ -z "${CURSOR_ORCHESTRATOR_WEBHOOK_URL}" ]; then
             echo "Missing CURSOR_ORCHESTRATOR_WEBHOOK_URL secret." >&2
@@ -218,7 +310,7 @@ jobs:
           fi
 
       - name: Notify Cursor orchestrator
-        if: ${{ inputs.dry_run != 'true' }}
+        if: ${{ inputs.dry_run != 'true' && steps.branch_exists.outputs.skip != 'true' }}
         run: |
           auth_header=""
           if [ -n "${CURSOR_ORCHESTRATOR_TOKEN}" ]; then
