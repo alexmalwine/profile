@@ -44,6 +44,9 @@ export const useCustomTradingCards = () => {
   const [theme, setTheme] = useState('')
   const [artStyle, setArtStyle] = useState(DEFAULT_ART_STYLE)
   const [referenceImages, setReferenceImages] = useState([])
+  const [previewUrl, setPreviewUrl] = useState('')
+  const [previewName, setPreviewName] = useState('')
+  const [isPreviewing, setIsPreviewing] = useState(false)
   const [isGenerating, setIsGenerating] = useState(false)
   const [error, setError] = useState('')
   const [downloadUrl, setDownloadUrl] = useState('')
@@ -56,6 +59,23 @@ export const useCustomTradingCards = () => {
   const prefixes = useMemo(() => parseList(prefixesInput), [prefixesInput])
   const prefixCount = prefixes.length > 0 ? prefixes.length : 1
   const totalCombinations = cardTitles.length * prefixCount
+  const previewCombination = useMemo(() => {
+    if (cardTitles.length === 0) {
+      return null
+    }
+    const prefix = prefixes[0] ?? ''
+    const title = cardTitles[0]
+    const displayTitle = prefix ? `${prefix} ${title}` : title
+    return { title, prefix: prefix || null, displayTitle }
+  }, [cardTitles, prefixes])
+
+  const clearPreview = useCallback(() => {
+    if (previewUrl) {
+      URL.revokeObjectURL(previewUrl)
+    }
+    setPreviewUrl('')
+    setPreviewName('')
+  }, [previewUrl])
 
   const clearDownload = useCallback(() => {
     if (downloadUrl) {
@@ -65,36 +85,42 @@ export const useCustomTradingCards = () => {
     setDownloadName('')
   }, [downloadUrl])
 
-  useEffect(
-    () => () => {
+  useEffect(() => {
+    return () => {
+      if (previewUrl) {
+        URL.revokeObjectURL(previewUrl)
+      }
       if (downloadUrl) {
         URL.revokeObjectURL(downloadUrl)
       }
-    },
-    [downloadUrl],
-  )
+    }
+  }, [previewUrl, downloadUrl])
 
   const handleCardTitlesChange = (event) => {
     setCardTitlesInput(event.target.value)
     setError('')
+    clearPreview()
     clearDownload()
   }
 
   const handlePrefixesChange = (event) => {
     setPrefixesInput(event.target.value)
     setError('')
+    clearPreview()
     clearDownload()
   }
 
   const handleThemeChange = (event) => {
     setTheme(event.target.value)
     setError('')
+    clearPreview()
     clearDownload()
   }
 
   const handleArtStyleChange = (event) => {
     setArtStyle(event.target.value)
     setError('')
+    clearPreview()
     clearDownload()
   }
 
@@ -102,7 +128,67 @@ export const useCustomTradingCards = () => {
     const files = Array.from(event.target.files ?? [])
     setReferenceImages(files)
     setError('')
+    clearPreview()
     clearDownload()
+  }
+
+  const handleGeneratePreview = async () => {
+    if (cardTitles.length === 0) {
+      setError('Add at least one card title to continue.')
+      return
+    }
+    if (!theme.trim()) {
+      setError('Add a theme to guide the artwork.')
+      return
+    }
+    if (totalCombinations > MAX_TRADING_CARD_COMBINATIONS) {
+      setError(
+        `Limit requests to ${MAX_TRADING_CARD_COMBINATIONS} card combinations.`,
+      )
+      return
+    }
+
+    setIsPreviewing(true)
+    setError('')
+    clearPreview()
+    clearDownload()
+
+    try {
+      const formData = new FormData()
+      formData.append('card_titles', JSON.stringify(cardTitles))
+      if (prefixes.length > 0) {
+        formData.append('prefixes', JSON.stringify(prefixes))
+      }
+      formData.append('art_style', artStyle)
+      formData.append('theme', theme.trim())
+      referenceImages.forEach((file) => {
+        formData.append('reference_images', file, file.name)
+      })
+
+      const response = await fetch('/api/games/custom-trading-cards/preview', {
+        method: 'POST',
+        body: formData,
+      })
+
+      if (!response.ok) {
+        const payload = await response.json().catch(() => null)
+        throw new Error(payload?.message ?? 'Unable to generate preview.')
+      }
+
+      const blob = await response.blob()
+      const fileName =
+        extractFileName(response.headers.get('content-disposition')) ??
+        'card-preview.png'
+      const url = URL.createObjectURL(blob)
+      setPreviewUrl(url)
+      setPreviewName(fileName)
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : 'Unable to generate preview.'
+      setError(message)
+    } finally {
+      setIsPreviewing(false)
+    }
   }
 
   const handleGenerateCards = async () => {
@@ -118,6 +204,10 @@ export const useCustomTradingCards = () => {
       setError(
         `Limit requests to ${MAX_TRADING_CARD_COMBINATIONS} card combinations.`,
       )
+      return
+    }
+    if (!previewUrl) {
+      setError('Generate a preview card before requesting the full set.')
       return
     }
 
@@ -172,6 +262,8 @@ export const useCustomTradingCards = () => {
     setReferenceImages([])
     setError('')
     setIsGenerating(false)
+    setIsPreviewing(false)
+    clearPreview()
     clearDownload()
   }
 
@@ -181,6 +273,10 @@ export const useCustomTradingCards = () => {
     theme,
     artStyle,
     referenceImages,
+    previewUrl,
+    previewName,
+    previewCombination,
+    isPreviewing,
     isGenerating,
     error,
     downloadUrl,
@@ -194,6 +290,7 @@ export const useCustomTradingCards = () => {
     handleThemeChange,
     handleArtStyleChange,
     handleReferenceImagesChange,
+    handleGeneratePreview,
     handleGenerateCards,
     handleReset,
   }

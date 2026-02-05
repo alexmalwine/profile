@@ -45,8 +45,11 @@ docker run --rm -p 3000:3000 \
 - `POST /api/games/unemployedle/start` accepts a resume upload (multipart form).
 - `POST /api/games/unemployedle/jobs` returns top 10 job matches.
 - `POST /api/games/unemployedle/guess` accepts `{ gameId, letter }`.
-- `POST /api/games/custom-trading-cards/generate` accepts titles, prefixes, theme,
-  art style, and optional reference images. Returns a zip of generated cards.
+- `POST /api/games/custom-trading-cards/preview` accepts titles, prefixes, theme,
+  art style, and optional reference images. Returns a single preview card image.
+- `POST /api/games/custom-trading-cards/generate` accepts titles, prefixes,
+  theme, art style, and optional reference images. Returns a zip of generated
+  cards.
 - `GET /api/tools/resume-formatter/formats` returns available formats.
 - `POST /api/tools/resume-formatter/format` formats a resume upload.
 

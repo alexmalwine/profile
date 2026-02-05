@@ -41,6 +41,10 @@ const GamesSection = ({ apiStatus, apiStatusLabel }) => {
     theme,
     artStyle,
     referenceImages,
+    previewUrl,
+    previewName,
+    previewCombination,
+    isPreviewing,
     isGenerating: isGeneratingCards,
     error: cardsError,
     downloadUrl,
@@ -53,6 +57,7 @@ const GamesSection = ({ apiStatus, apiStatusLabel }) => {
     handleThemeChange,
     handleArtStyleChange,
     handleReferenceImagesChange,
+    handleGeneratePreview,
     handleGenerateCards,
     handleReset: handleResetCards,
   } = useCustomTradingCards()
@@ -84,16 +89,21 @@ const GamesSection = ({ apiStatus, apiStatusLabel }) => {
   const gameStatusClass = isGenerating
     ? 'loading'
     : gameState?.status ?? 'ready'
-  const cardsStatusClass = isGeneratingCards
+  const isCardsBusy = isGeneratingCards || isPreviewing
+  const cardsStatusClass = isCardsBusy
     ? 'loading'
-    : downloadUrl
+    : downloadUrl || previewUrl
       ? 'formatted'
       : 'ready'
-  const cardsStatusLabel = isGeneratingCards
-    ? 'Generating'
-    : downloadUrl
-      ? 'Zip ready'
-      : 'Ready'
+  const cardsStatusLabel = isPreviewing
+    ? 'Previewing'
+    : isGeneratingCards
+      ? 'Generating'
+      : downloadUrl
+        ? 'Zip ready'
+        : previewUrl
+          ? 'Preview ready'
+          : 'Ready'
   const cardTitleCount = cardTitles.length
   const isOverCardLimit =
     totalCombinations > MAX_TRADING_CARD_COMBINATIONS
@@ -103,6 +113,7 @@ const GamesSection = ({ apiStatus, apiStatusLabel }) => {
   const selectedArtStyle = TRADING_CARD_ART_STYLES.find(
     (style) => style.id === artStyle,
   )
+  const previewLabel = previewCombination?.displayTitle ?? 'your first card'
 
   return (
     <section id="games" className="section">
@@ -507,7 +518,7 @@ const GamesSection = ({ apiStatus, apiStatusLabel }) => {
           </div>
 
           <div
-            className={`game-card${isGeneratingCards ? ' is-loading' : ''}`}
+            className={`game-card${isCardsBusy ? ' is-loading' : ''}`}
             role="tabpanel"
             id="custom-trading-cards-panel"
             aria-labelledby="custom-trading-cards-tab"
@@ -526,13 +537,17 @@ const GamesSection = ({ apiStatus, apiStatusLabel }) => {
               </span>
             </div>
 
-            {isGeneratingCards && (
+            {isCardsBusy && (
               <div className="loading-banner compact" role="status" aria-live="polite">
                 <span className="loading-spinner" aria-hidden="true" />
                 <div>
-                  <p className="loading-title">Generating your cards</p>
+                  <p className="loading-title">
+                    {isPreviewing ? 'Generating your preview card' : 'Generating your cards'}
+                  </p>
                   <p className="loading-subtitle">
-                    We are rendering each card with the selected art style.
+                    {isPreviewing
+                      ? 'This quick sample helps you approve the style.'
+                      : 'We are rendering each card with the selected art style.'}
                   </p>
                 </div>
               </div>
@@ -547,7 +562,7 @@ const GamesSection = ({ apiStatus, apiStatusLabel }) => {
                     placeholder="Charizard&#10;Pikachu&#10;Mewtwo"
                     rows={4}
                     value={cardTitlesInput}
-                    disabled={isGeneratingCards}
+                    disabled={isCardsBusy}
                     onChange={handleCardTitlesChange}
                   />
                   <p className="note">
@@ -563,7 +578,7 @@ const GamesSection = ({ apiStatus, apiStatusLabel }) => {
                     placeholder="Shiny&#10;Mega"
                     rows={3}
                     value={prefixesInput}
-                    disabled={isGeneratingCards}
+                    disabled={isCardsBusy}
                     onChange={handlePrefixesChange}
                   />
                   <p className="note">
@@ -578,7 +593,7 @@ const GamesSection = ({ apiStatus, apiStatusLabel }) => {
                     className="text-input"
                     placeholder="Neon cyber city with storm clouds"
                     value={theme}
-                    disabled={isGeneratingCards}
+                    disabled={isCardsBusy}
                     onChange={handleThemeChange}
                   />
                   <p className="note">
@@ -591,7 +606,7 @@ const GamesSection = ({ apiStatus, apiStatusLabel }) => {
                   <select
                     className="select-input"
                     value={artStyle}
-                    disabled={isGeneratingCards}
+                    disabled={isCardsBusy}
                     onChange={handleArtStyleChange}
                   >
                     {TRADING_CARD_ART_STYLES.map((style) => (
@@ -611,7 +626,7 @@ const GamesSection = ({ apiStatus, apiStatusLabel }) => {
                     type="file"
                     accept="image/*"
                     multiple
-                    disabled={isGeneratingCards}
+                    disabled={isCardsBusy}
                     onChange={handleReferenceImagesChange}
                   />
                 </label>
@@ -630,21 +645,35 @@ const GamesSection = ({ apiStatus, apiStatusLabel }) => {
                   <button
                     type="button"
                     className="button primary"
-                    onClick={handleGenerateCards}
+                    onClick={handleGeneratePreview}
                     disabled={
-                      isGeneratingCards ||
+                      isCardsBusy ||
                       isOverCardLimit ||
                       cardTitleCount === 0 ||
                       !theme.trim()
                     }
                   >
-                    {isGeneratingCards ? 'Generating...' : 'Generate cards'}
+                    {isPreviewing ? 'Generating preview...' : 'Generate preview'}
+                  </button>
+                  <button
+                    type="button"
+                    className="button ghost"
+                    onClick={handleGenerateCards}
+                    disabled={
+                      isCardsBusy ||
+                      isOverCardLimit ||
+                      cardTitleCount === 0 ||
+                      !theme.trim() ||
+                      !previewUrl
+                    }
+                  >
+                    {isGeneratingCards ? 'Generating set...' : 'Generate full set'}
                   </button>
                   <button
                     type="button"
                     className="button ghost"
                     onClick={handleResetCards}
-                    disabled={isGeneratingCards}
+                    disabled={isCardsBusy}
                   >
                     Reset
                   </button>
@@ -658,6 +687,10 @@ const GamesSection = ({ apiStatus, apiStatusLabel }) => {
                     </a>
                   )}
                 </div>
+                <p className="note">
+                  Generate a preview first, then kick off the full batch when
+                  the style looks right.
+                </p>
                 <p className="note">
                   Limit each request to {MAX_TRADING_CARD_COMBINATIONS} cards to
                   keep AI costs low.
@@ -687,6 +720,26 @@ const GamesSection = ({ apiStatus, apiStatusLabel }) => {
                 <p className="note">
                   {cardsSummary} will be generated using the {selectedArtStyle?.label ?? 'selected'} style.
                 </p>
+                <div className="preview-frame">
+                  <p className="label">Preview card</p>
+                  {previewUrl ? (
+                    <>
+                      <img
+                        className="preview-image"
+                        src={previewUrl}
+                        alt={`Preview of ${previewLabel}`}
+                      />
+                      <p className="note">Previewing: {previewLabel}</p>
+                      {previewName && (
+                        <p className="file-meta compact">File: {previewName}</p>
+                      )}
+                    </>
+                  ) : (
+                    <p className="note">
+                      Generate a preview to unlock the full card set.
+                    </p>
+                  )}
+                </div>
                 {isOverCardLimit && (
                   <p className="status-line error">
                     Too many combinations. Reduce titles or prefixes to stay

@@ -45,16 +45,7 @@ export class CustomTradingCardsService {
       request.cardTitles,
       request.prefixes,
     );
-
-    if (combinations.length === 0) {
-      throw new BadRequestException('At least one card title is required.');
-    }
-
-    if (combinations.length > MAX_CARD_COMBINATIONS) {
-      throw new BadRequestException(
-        `Only ${MAX_CARD_COMBINATIONS} card combinations are allowed per request.`,
-      );
-    }
+    this.assertCombinationCount(combinations.length);
 
     const referenceMap = this.buildReferenceImageMap(request.referenceImages);
     this.logger.log(`Generating ${combinations.length} trading card images.`);
@@ -62,29 +53,24 @@ export class CustomTradingCardsService {
     return this.runWithConcurrency(
       combinations,
       IMAGE_GENERATION_CONCURRENCY,
-      async (combo) => {
-        const referenceImage = referenceMap.get(
-          normalizeTitleKey(combo.title),
-        );
-        const prompt = this.buildPrompt(
-          combo,
-          request.theme,
-          request.artStyle,
-          Boolean(referenceImage),
-        );
-        const buffer = await this.imageClient.generateImage(prompt, {
-          referenceImage,
-        });
-        const safeName = sanitizeFileName(combo.displayTitle);
-
-        return {
-          title: combo.title,
-          prefix: combo.prefix,
-          fileName: `${safeName}.png`,
-          buffer,
-        };
-      },
+      (combo) => this.generateCard(combo, request, referenceMap),
     );
+  }
+
+  async generatePreviewCard(
+    request: CustomTradingCardsRequest,
+  ): Promise<GeneratedCard> {
+    const combinations = this.buildCombinations(
+      request.cardTitles,
+      request.prefixes,
+    );
+    this.assertCombinationCount(combinations.length);
+
+    const [preview] = combinations;
+    const referenceMap = this.buildReferenceImageMap(request.referenceImages);
+    this.logger.log(`Generating preview card for ${preview.displayTitle}.`);
+
+    return this.generateCard(preview, request, referenceMap);
   }
 
   private buildCombinations(cardTitles: string[], prefixes: string[]) {
@@ -132,6 +118,43 @@ export class CustomTradingCardsService {
     });
 
     return map;
+  }
+
+  private async generateCard(
+    combo: CardCombination,
+    request: CustomTradingCardsRequest,
+    referenceMap: Map<string, Express.Multer.File>,
+  ): Promise<GeneratedCard> {
+    const referenceImage = referenceMap.get(normalizeTitleKey(combo.title));
+    const prompt = this.buildPrompt(
+      combo,
+      request.theme,
+      request.artStyle,
+      Boolean(referenceImage),
+    );
+    const buffer = await this.imageClient.generateImage(prompt, {
+      referenceImage,
+    });
+    const safeName = sanitizeFileName(combo.displayTitle);
+
+    return {
+      title: combo.title,
+      prefix: combo.prefix,
+      fileName: `${safeName}.png`,
+      buffer,
+    };
+  }
+
+  private assertCombinationCount(count: number) {
+    if (count === 0) {
+      throw new BadRequestException('At least one card title is required.');
+    }
+
+    if (count > MAX_CARD_COMBINATIONS) {
+      throw new BadRequestException(
+        `Only ${MAX_CARD_COMBINATIONS} card combinations are allowed per request.`,
+      );
+    }
   }
 
   private buildPrompt(

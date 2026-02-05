@@ -56,7 +56,72 @@ export class CustomTradingCardsController {
     if (!response) {
       throw new BadRequestException('Response object is not available.');
     }
+    const request = this.buildRequestPayload(body, files);
+    const cards = await this.customTradingCardsService.generateCards(request);
 
+    response.setHeader('Content-Type', 'application/zip');
+    response.setHeader(
+      'Content-Disposition',
+      `attachment; filename="${DEFAULT_ZIP_NAME}"`,
+    );
+
+    const archive = archiver('zip', { zlib: { level: 9 } });
+    archive.on('warning', (error) => {
+      this.logger.warn(
+        `Trading card zip warning: ${error?.message ?? 'Unknown warning'}`,
+      );
+    });
+    archive.on('error', (error) => {
+      this.logger.error(
+        `Trading card zip error: ${error?.message ?? 'Unknown error'}`,
+      );
+      if (!response.headersSent) {
+        response.status(500).json({ message: 'Unable to generate card zip.' });
+      } else {
+        response.end();
+      }
+    });
+
+    archive.pipe(response);
+    cards.forEach((card) => {
+      archive.append(card.buffer, { name: card.fileName });
+    });
+    await archive.finalize();
+  }
+
+  @Post('preview')
+  @UseInterceptors(
+    FilesInterceptor('reference_images', MAX_REFERENCE_IMAGES, {
+      limits: { fileSize: 5 * 1024 * 1024 },
+    }),
+  )
+  async previewCard(
+    @UploadedFiles() files: Express.Multer.File[] = [],
+    @Body() body?: CustomTradingCardsRequestBody,
+    @Res() response?: Response,
+  ): Promise<void> {
+    if (!response) {
+      throw new BadRequestException('Response object is not available.');
+    }
+
+    const request = this.buildRequestPayload(body, files);
+    const preview = await this.customTradingCardsService.generatePreviewCard(
+      request,
+    );
+
+    response.setHeader('Content-Type', 'image/png');
+    response.setHeader(
+      'Content-Disposition',
+      `inline; filename="${preview.fileName}"`,
+    );
+    response.setHeader('Cache-Control', 'no-store');
+    response.end(preview.buffer);
+  }
+
+  private buildRequestPayload(
+    body: CustomTradingCardsRequestBody | undefined,
+    files: Express.Multer.File[],
+  ) {
     const titles = parseDelimitedList(
       body?.card_titles ?? body?.cardTitles ?? body?.Card_titles,
     );
@@ -88,41 +153,12 @@ export class CustomTradingCardsController {
       );
     }
 
-    const cards = await this.customTradingCardsService.generateCards({
+    return {
       cardTitles: titles,
       prefixes: normalizedPrefixes,
       theme: normalizedTheme,
       artStyle: normalizedArtStyle as ArtStyleOption,
       referenceImages: files ?? [],
-    });
-
-    response.setHeader('Content-Type', 'application/zip');
-    response.setHeader(
-      'Content-Disposition',
-      `attachment; filename="${DEFAULT_ZIP_NAME}"`,
-    );
-
-    const archive = archiver('zip', { zlib: { level: 9 } });
-    archive.on('warning', (error) => {
-      this.logger.warn(
-        `Trading card zip warning: ${error?.message ?? 'Unknown warning'}`,
-      );
-    });
-    archive.on('error', (error) => {
-      this.logger.error(
-        `Trading card zip error: ${error?.message ?? 'Unknown error'}`,
-      );
-      if (!response.headersSent) {
-        response.status(500).json({ message: 'Unable to generate card zip.' });
-      } else {
-        response.end();
-      }
-    });
-
-    archive.pipe(response);
-    cards.forEach((card) => {
-      archive.append(card.buffer, { name: card.fileName });
-    });
-    await archive.finalize();
+    };
   }
 }

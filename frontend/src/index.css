@@ -679,6 +679,23 @@ main {
   resize: vertical;
 }
 
+.preview-frame {
+  margin-top: 1.5rem;
+  padding: 1rem;
+  border-radius: var(--radius);
+  border: 1px dashed var(--border);
+  background: var(--surface-2);
+  display: grid;
+  gap: 0.75rem;
+}
+
+.preview-image {
+  width: 100%;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+}
+
 .game-actions {
   display: flex;
   gap: 1rem;
