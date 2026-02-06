@@ -309,7 +309,8 @@ main {
 }
 
 .section-muted .summary,
-.section-muted .role {
+.section-muted .role,
+.section-muted .muted {
   color: var(--section-muted-muted);
 }
 
@@ -1038,8 +1039,8 @@ main {
     --border: #e2e8f0;
     --shadow: 0 20px 40px rgba(15, 23, 42, 0.12);
     --section-muted-bg: #ffffff;
-    --section-muted-text: #0b1120;
-    --section-muted-muted: #1f2937;
+    --section-muted-text: var(--text);
+    --section-muted-muted: var(--text);
   }
 
   body {
