@@ -22,6 +22,8 @@
   --radius: 16px;
   --max-width: 1120px;
   --section-muted-bg: rgba(17, 24, 39, 0.85);
+  --section-muted-text: var(--text);
+  --section-muted-muted: var(--muted);
 }
 
 html {
@@ -303,7 +305,12 @@ main {
 
 .section-muted {
   background: var(--section-muted-bg);
-  color: var(--text);
+  color: var(--section-muted-text);
+}
+
+.section-muted .summary,
+.section-muted .role {
+  color: var(--section-muted-muted);
 }
 
 .section-grid {
@@ -1031,6 +1038,8 @@ main {
     --border: #e2e8f0;
     --shadow: 0 20px 40px rgba(15, 23, 42, 0.12);
     --section-muted-bg: #ffffff;
+    --section-muted-text: #0b1120;
+    --section-muted-muted: #1f2937;
   }
 
   body {
@@ -1047,10 +1056,5 @@ main {
   .section-muted {
     border-top: 1px solid var(--border);
     border-bottom: 1px solid var(--border);
-  }
-
-  .section-muted .summary,
-  .section-muted .timeline-meta .role {
-    color: var(--text);
   }
 }
