@@ -258,7 +258,7 @@ main {
 
 .role {
   margin: 0.2rem 0;
-  color: var(--muted);
+  color: #f9fafb;
 }
 
 .meta {
@@ -302,6 +302,7 @@ main {
 
 .section.muted {
   background: rgba(17, 24, 39, 0.85);
+  color: #f9fafb;
 }
 
 .section-grid {
@@ -368,10 +369,6 @@ main {
   justify-content: space-between;
   gap: 1rem;
   flex-wrap: wrap;
-}
-
-.summary {
-  color: var(--muted);
 }
 
 .section-header {
@@ -451,10 +448,6 @@ main {
   font-size: 0.75rem;
   text-transform: uppercase;
   letter-spacing: 0.15em;
-  color: var(--muted);
-}
-
-.muted {
   color: var(--muted);
 }
 
