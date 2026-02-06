@@ -1,4 +1,4 @@
-import { Logger } from '@nestjs/common';
+import { ConsoleLogger } from '@nestjs/common';
 import { hostname } from 'os';
 import {
   MAX_FIELD_LENGTH,
@@ -53,7 +53,7 @@ type ErrorContext = {
   timestamp: string;
 };
 
-export class CursorOrchestratorLogger extends Logger {
+export class CursorOrchestratorLogger extends ConsoleLogger {
   private readonly enabled = parseBooleanFlag(
     process.env.CURSOR_ORCHESTRATOR_ENABLED,
   );
