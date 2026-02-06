@@ -21,6 +21,7 @@
   --shadow: 0 20px 40px rgba(0, 0, 0, 0.35);
   --radius: 16px;
   --max-width: 1120px;
+  --section-muted-bg: rgba(17, 24, 39, 0.85);
 }
 
 html {
@@ -301,7 +302,8 @@ main {
 }
 
 .section.muted {
-  background: rgba(17, 24, 39, 0.85);
+  background: var(--section-muted-bg);
+  color: var(--text);
 }
 
 .section-grid {
@@ -1028,6 +1030,7 @@ main {
     --loading-border: rgba(217, 119, 6, 0.35);
     --border: #e2e8f0;
     --shadow: 0 20px 40px rgba(15, 23, 42, 0.12);
+    --section-muted-bg: #f1f5f9;
   }
 
   body {
