@@ -1,5 +1,5 @@
 const SkillsSection = () => (
-  <section id="skills" className="section muted">
+  <section id="skills" className="section section-muted">
     <div className="container section-grid">
       <div>
         <h2>Skills and tools</h2>

@@ -301,7 +301,7 @@ main {
   padding: 5rem 0;
 }
 
-.section.muted {
+.section-muted {
   background: var(--section-muted-bg);
   color: var(--text);
 }
@@ -1030,7 +1030,7 @@ main {
     --loading-border: rgba(217, 119, 6, 0.35);
     --border: #e2e8f0;
     --shadow: 0 20px 40px rgba(15, 23, 42, 0.12);
-    --section-muted-bg: #f1f5f9;
+    --section-muted-bg: #ffffff;
   }
 
   body {
@@ -1042,5 +1042,15 @@ main {
 
   .site-header {
     background: rgba(248, 250, 252, 0.9);
+  }
+
+  .section-muted {
+    border-top: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+  }
+
+  .section-muted .summary,
+  .section-muted .timeline-meta .role {
+    color: var(--text);
   }
 }

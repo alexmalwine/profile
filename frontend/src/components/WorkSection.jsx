@@ -1,5 +1,5 @@
 const WorkSection = () => (
-  <section id="work" className="section muted">
+  <section id="work" className="section section-muted">
     <div className="container">
       <h2>Experience</h2>
       <div className="timeline">
