@@ -258,7 +258,7 @@ const extractTitleFromLine = (line: string) => {
   return cleaned || null;
 };
 
-const extractLastJobTitle = (resumeText: string) => {
+export const extractLastJobTitle = (resumeText: string) => {
   const lines = normalizeResumeLines(resumeText);
   if (lines.length === 0) {
     return null;

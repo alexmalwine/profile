@@ -12,7 +12,10 @@ import {
   CACHE_TTL_MS,
   MAX_GUESSES,
 } from './unemployedle/constants';
-import { JobBoardSearchClient } from './unemployedle/job-search.client';
+import {
+  JobBoardSearchClient,
+  extractLastJobTitle,
+} from './unemployedle/job-search.client';
 import { ChatGptJobRanker } from './unemployedle/job-ranker.client';
 import {
   buildJobId,
@@ -902,14 +905,22 @@ export class UnemployedleService {
     resumeText: string,
     options?: JobSearchOptions,
   ): JobSearchOptions {
+    const fallbackDesiredJobTitle = toNonEmptyString(
+      extractLastJobTitle(resumeText),
+    );
     if (!options) {
-      return { includeRemote: true, includeLocal: true };
+      return {
+        includeRemote: true,
+        includeLocal: true,
+        desiredJobTitle: fallbackDesiredJobTitle,
+      };
     }
 
     const includeRemote = Boolean(options.includeRemote);
     const includeLocal = Boolean(options.includeLocal);
     const specificLocation = toNonEmptyString(options.specificLocation);
-    const desiredJobTitle = toNonEmptyString(options.desiredJobTitle);
+    const desiredJobTitle =
+      toNonEmptyString(options.desiredJobTitle) ?? fallbackDesiredJobTitle;
     const localLocation = includeLocal
       ? toNonEmptyString(options.localLocation) ??
         extractResumeLocation(resumeText)
