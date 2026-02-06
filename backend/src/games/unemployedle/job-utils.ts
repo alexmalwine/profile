@@ -34,16 +34,26 @@ const normalizeKeywordText = (text: string) =>
     .replace(/\s+/g, ' ')
     .trim();
 
+const escapeRegExp = (value: string) =>
+  value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
 const keywordMatches = (lower: string, normalized: string, keyword: string) => {
-  const lowerKeyword = keyword.toLowerCase();
-  if (lower.includes(lowerKeyword)) {
-    return true;
-  }
-  const normalizedKeyword = normalizeKeywordText(lowerKeyword);
-  if (normalizedKeyword.length < 3) {
+  const lowerKeyword = keyword.toLowerCase().trim();
+  if (!lowerKeyword) {
     return false;
   }
-  return normalized.includes(normalizedKeyword);
+  if (/[^a-z0-9\s]/i.test(lowerKeyword)) {
+    const escaped = escapeRegExp(lowerKeyword);
+    return new RegExp(`(^|[^a-z0-9])${escaped}([^a-z0-9]|$)`, 'i').test(
+      lower,
+    );
+  }
+  const normalizedKeyword = normalizeKeywordText(lowerKeyword);
+  if (!normalizedKeyword) {
+    return false;
+  }
+  const padded = ` ${normalized} `;
+  return padded.includes(` ${normalizedKeyword} `);
 };
 
 export const extractResumeKeywords = (resumeText: string) => {
